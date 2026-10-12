@@ -1,0 +1,14 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# נתיב ידידותי: האדמין פונה ל-/api/players, הדף הציבורי ל-/api/public
+[[redirects]]
+  from = "/api/players"
+  to = "/.netlify/functions/players"
+  status = 200
+
+[[redirects]]
+  from = "/api/public"
+  to = "/.netlify/functions/public"
+  status = 200

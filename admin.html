@@ -1,0 +1,506 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>מחולל כוחות</title><style>
+/* ===== בסיס ===== */
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f2f5f9;color:#172c45;margin:0}
+main{max-width:1080px;margin:auto;padding:16px}
+h1{text-align:center;margin:12px}
+h2{font-size:20px;margin:4px 0 14px}
+h3{margin:10px 0 6px;font-size:16px}
+h4.input-heading{font-size:15px;margin:14px 0 6px;font-weight:700}
+
+details,.panel{background:#fff;border:1px solid #d8e1ed;border-radius:13px;margin:14px 0;padding:14px;box-shadow:0 2px 8px rgba(18,49,80,.08)}
+summary{font-size:21px;font-weight:bold;cursor:pointer;padding:6px}
+
+button,input,textarea,select{font:inherit}
+button{background:#155b9e;color:#fff;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;margin:3px}
+button.secondary{background:#e9eef5;color:#183858}
+button.danger{background:#b73343;color:#fff}
+button.export{background:#19806b;color:#fff}
+button.small{font-size:13px;padding:6px 8px}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,textarea,select{border:1px solid #b8c8d8;border-radius:8px;padding:9px;max-width:100%;background:#fff;color:inherit}
+textarea{width:100%;min-height:90px;resize:vertical}
+.mini{width:75px}
+
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:#64748b;font-size:14px}
+.hint{background:#eef6ff;padding:10px;border-radius:8px;margin:8px 0}
+.badge{background:#e9eef5;padding:4px 8px;border-radius:6px}
+
+/* ===== הצגה/עריכה בטבלת הדירוג ===== */
+.editonly{display:none}
+#poolList.editing .editonly{display:inline-block}
+#poolList.editing .viewonly{display:none}
+#poolList.editing .rating-editor{display:inline-flex}
+#poolList.editing .rating-arrows{display:flex}
+
+/* ===== toast ===== */
+#toast{position:fixed;bottom:18px;right:18px;left:18px;margin:auto;width:max-content;max-width:90vw;background:#193a56;color:#fff;border-radius:10px;padding:12px 20px;box-shadow:0 6px 20px #0004;display:none;z-index:10}
+
+/* ===== מאגר שחקנים ===== */
+#poolUpdate{border:1px solid #d5dfeb;border-radius:10px;padding:8px 12px;margin:12px 0;background:#f8fbff}
+#poolUpdate>summary{font-size:16px;font-weight:700}
+.pool-single{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pool-single #newName{flex:1 1 140px;min-width:90px}
+.pool-single #newRating{flex:0 0 72px;width:72px}
+.pool-single #newFitness{flex:0 0 104px}
+.pool-single button{flex:0 0 auto}
+.pool-tools{display:flex;flex-wrap:wrap;gap:6px}
+.pool-tools button{flex:1 1 120px;min-width:0;white-space:nowrap}
+.rating-heading{display:flex;align-items:center;gap:12px;margin:16px 0 8px}
+.rating-heading strong{font-size:18px}
+.rating-heading #clearPool{margin-inline-start:auto}
+
+#poolList .pool-row{display:grid;grid-template-columns:34px minmax(90px,1fr) auto auto auto;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid #e5ebf3}
+#poolList .pool-num{color:#64748b;font-variant-numeric:tabular-nums}
+#poolList .pool-name{overflow-wrap:anywhere}
+#poolList input.pool-name{width:100%}
+#poolList .pool-rating,#poolList .pool-fitness{text-align:center;font-variant-numeric:tabular-nums}
+#poolList .rating-editor{display:none;align-items:center;gap:4px}
+#poolList .rating-editor>input{width:54px;text-align:center;padding:5px 4px;appearance:textfield;-moz-appearance:textfield}
+#poolList .rating-editor>input::-webkit-inner-spin-button,#poolList .rating-editor>input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#poolList .rating-arrows{display:none;flex-direction:column;gap:2px}
+#poolList .rating-arrows button{margin:0;width:26px;height:19px;padding:0;border-radius:4px;font-size:11px;line-height:19px;background:#dce8f7;color:#174d87}
+#poolList select[data-fitness]{padding:5px 4px}
+#poolList:not(.editing) .pool-del{display:none}
+
+/* ===== סגל ===== */
+.roster-row{display:grid;grid-template-columns:30px minmax(80px,1fr) auto minmax(0,auto);gap:8px;align-items:center;padding:7px 6px;margin:3px 0;border-bottom:1px solid #e5ebf3;font-size:16px}
+.roster-row .roster-num{color:#64748b;font-variant-numeric:tabular-nums}
+.roster-row .roster-name{overflow-wrap:anywhere}
+.roster-row .roster-rating{text-align:center;font-variant-numeric:tabular-nums;min-width:26px}
+.roster-row .acts{display:flex;gap:5px;justify-content:flex-end;flex-wrap:nowrap}
+.roster-row .acts button{margin:0}
+.roster-row.roster-question{background:#ffe2b5;border:1px solid #e6a44d;border-radius:7px}
+.roster-row.roster-question .roster-name{font-style:italic}
+.roster-confirm{background:#fff3d9;color:#875000;border:1px solid #d7a24c;font-weight:bold}
+.roster-actions{margin-top:10px}
+
+/* ===== משחק יחד ===== */
+#together{border:1px solid #d5dfeb;border-radius:10px;background:#f8fbff;margin:12px 0}
+#together>summary{font-size:16px;font-weight:700}
+.together-row{display:grid;grid-template-columns:minmax(70px,1fr) 1fr 1fr;gap:8px;align-items:center;padding:5px 4px;border-bottom:1px solid #e5ebf3}
+.together-row.together-head{font-weight:700;color:#334155;font-size:13px;border-bottom:2px solid #d8e1ed}
+.together-row select{width:100%;padding:6px 4px}
+.together-name{overflow-wrap:anywhere}
+
+/* ===== קבוצות ===== */
+.teams{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.team{border:2px solid;border-radius:12px;overflow:hidden;min-width:0}
+.team h3{text-align:center;margin:0;padding:12px;border-bottom:2px solid currentColor}
+.team.blue{background:#e5f0ff;color:#144a98;border-color:#4389d8}
+.team.red{background:#ffe9e9;color:#a32232;border-color:#db5460}
+.team.yellow{background:#fff5cb;color:#775800;border-color:#e3b82b}
+.team.orange{background:#fff0da;color:#955000;border-color:#e69533}
+.team.white{background:#fff;color:#3c4b5c;border-color:#a6b2c2}
+.person{padding:9px 6px;border-bottom:1px solid #a0a0a040;cursor:pointer;text-align:center;color:#172c45;overflow-wrap:anywhere}
+.person.active{outline:3px solid #1b955c;outline-offset:-3px;background:#d1f9e1}
+.total{text-align:center;font-weight:bold;padding:10px;color:#25364b}
+.final .person{cursor:default}
+.final .total{display:none}
+.color-change{display:block;margin:7px auto;padding:5px 9px;font-size:12px;background:#e9ecef;color:#39434d;border:1px solid #cbd1d8}
+.color-change:hover{background:#dce1e6}
+.balance{text-align:center;font-size:24px;font-weight:bold;background:#eaf4ff;border-radius:10px;padding:13px;margin:15px auto 0;width:max-content}
+
+/* ===== פרסום / קודמים / היסטוריה ===== */
+#finalPanel{max-width:650px;margin:0 auto}
+.publish-actions{margin-top:14px;flex-wrap:wrap}
+.publish-actions button{flex:1 1 120px;min-width:0;white-space:nowrap}
+.previous-entry{padding:8px;margin:6px 0}
+.previous-teams{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:5px 0}
+.previous-teams .team{border-width:1px;border-radius:6px}
+.previous-teams .person{padding:3px 2px;font-size:12px;line-height:1.15;cursor:default}
+.previous-team-label{text-align:center;font-size:12px;font-weight:bold;padding:5px 2px;border-bottom:1px solid #a0a0a055}
+.history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+
+/* ===== דיאלוגים ===== */
+dialog{border:1px solid #bbc9da;border-radius:12px;max-width:480px;width:92%;padding:18px;color:#172c45}
+dialog::backdrop{background:#0007}
+.item{display:flex;align-items:center;gap:8px;padding:6px 8px}
+#similarPlayers button,#promoteChoices button,#replaceSavedChoices button{display:block;text-align:right;width:100%;margin:6px 0}
+#ratingReviewList{max-height:50vh;overflow:auto}
+.rating-review-row{display:grid;grid-template-columns:minmax(110px,1fr) auto auto auto;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid #e3e8ef;font-size:13px}
+.rating-review-row button{padding:5px 8px;font-size:12px}
+
+/* ===== רספונסיבי ===== */
+@media(max-width:600px){
+ main{padding:8px}
+ details,.panel{padding:10px}
+ .teams{gap:6px}
+ .team h3{font-size:15px;padding:10px 3px}
+ .person{font-size:12px;padding:8px 2px}
+}
+@media(max-width:540px){
+ .roster-row{grid-template-columns:26px minmax(70px,1fr) auto auto;gap:5px;font-size:15px;padding:6px 3px}
+ .roster-row .acts{gap:3px}
+ .together-row{gap:5px}
+ #poolList .pool-row{grid-template-columns:28px minmax(80px,1fr) auto auto auto;gap:5px}
+ .previous-teams .person{font-size:10px}
+ .rating-review-row{grid-template-columns:minmax(80px,1fr) auto auto;gap:5px}
+}
+
+/* ===== נייד (POCO X7 ~393px וכדומה) ===== */
+@media(max-width:480px){
+ main{padding:7px}
+ h1{font-size:23px;margin:8px 0 2px}
+ #roundLabel{font-size:16px!important;margin:0 0 8px!important}
+ details,.panel{padding:9px;margin:10px 0;border-radius:11px}
+ summary{font-size:18px;padding:5px 2px}
+ h3{font-size:15px}
+ h4.input-heading{font-size:14px}
+ .muted{font-size:13px}
+
+ /* קלט ≥16px כדי למנוע זום אוטומטי בנייד */
+ input,textarea,select{font-size:16px;padding:10px 8px}
+ .mini{width:68px}
+
+ /* כפתורים נוחים ללחיצה */
+ button{padding:11px 12px;margin:2px;min-height:44px}
+ button.small{min-height:34px;padding:6px 9px;font-size:13px}
+ .row{gap:6px}
+
+ /* כלים — שתי עמודות ברוחב מלא במקום הצטופפות */
+ .pool-tools{gap:6px}
+ .pool-tools button{flex:1 1 calc(50% - 6px);min-height:46px}
+ .publish-actions{gap:6px}
+ .publish-actions button{flex:1 1 calc(50% - 6px);min-height:46px}
+ .roster-actions{gap:8px}
+ .roster-actions button{flex:1 1 calc(50% - 8px)}
+
+ /* הוספת שחקן בודד — שם ברוחב מלא, דירוג+כושר+כפתורים בשורה */
+ .pool-single{gap:6px}
+ .pool-single #newName{flex:1 1 100%}
+ .pool-single #newRating{flex:1 1 70px}
+ .pool-single #newFitness{flex:1 1 90px}
+ .pool-single button{flex:1 1 calc(50% - 6px);min-height:46px}
+
+ /* טבלת דירוג */
+ .rating-heading{gap:8px;flex-wrap:wrap}
+ .rating-heading strong{font-size:16px}
+ #poolList .pool-row{grid-template-columns:24px minmax(0,1fr) auto auto;gap:6px;padding:9px 3px;font-size:15px}
+ #poolList.editing .pool-row{grid-template-columns:22px 1fr;row-gap:7px;align-items:center}
+ #poolList.editing .pool-cell-name{grid-column:2/3}
+ #poolList.editing .pool-cell-rating{grid-column:1/2;grid-row:2}
+ #poolList.editing .pool-cell-fitness{grid-column:2/3;grid-row:2;justify-self:start}
+ #poolList.editing .pool-del{grid-column:2/3;grid-row:2;justify-self:end}
+ #poolList .rating-editor>input{width:52px;font-size:16px}
+ #poolList .rating-arrows button{width:30px;height:24px;line-height:24px;font-size:12px}
+ #poolList select[data-fitness]{width:auto;max-width:110px}
+
+ /* שורות סגל — הכל בשורה אחת, כפתורים קומפקטיים */
+ .roster-row{grid-template-columns:22px minmax(0,1fr) 30px auto;gap:5px;padding:9px 4px;font-size:16px}
+ .roster-row .roster-rating{min-width:0}
+ .roster-row .acts{gap:4px;flex-wrap:nowrap}
+ .roster-row .acts button{min-height:38px;padding:7px 9px;font-size:13px}
+
+ /* משחק יחד — שם בשורה, שני תפריטים מתחת */
+ .together-row{grid-template-columns:1fr 1fr;gap:6px 8px;padding:8px 4px}
+ .together-row.together-head{display:none}
+ .together-name{grid-column:1/3;font-weight:700}
+ .together-row select{width:100%}
+
+ /* קבוצות — נשאר 3 עמודות אך קריא */
+ .teams{gap:5px}
+ .team h3{font-size:13px;padding:9px 2px}
+ .person{font-size:12px;padding:7px 2px;line-height:1.25}
+ .person .muted{font-size:11px}
+ .total{font-size:12px;padding:8px 2px}
+ .color-change{font-size:11px;padding:6px;min-height:0}
+ .balance{font-size:19px;padding:11px 14px}
+
+ /* דיאלוגים */
+ dialog{width:94%;padding:15px;max-height:88vh;overflow:auto}
+ .item{padding:9px 6px}
+ .color-change,#colorChoices button{min-height:40px}
+
+ /* קודמים/היסטוריה */
+ .previous-teams{gap:4px}
+ .previous-teams .person{font-size:11px}
+ .history-head b{font-size:14px}
+}
+@media(max-width:380px){
+ .pool-single #newRating{flex-basis:60px}
+ .pool-single #newFitness{flex-basis:80px}
+ .person{font-size:11px}
+ .team h3{font-size:12px}
+}
+</style></head><body><main><div style="display:flex;align-items:center;justify-content:center;gap:10px;position:relative"><h1 style="margin:12px">מחולל כוחות</h1><a id="toPublic" href="index.html" title="לדף הציבורי" aria-label="לדף הציבורי" style="position:absolute;left:0;font-size:24px;text-decoration:none">👁️</a></div><div id="roundLabel" style="text-align:center;font-size:19px;font-weight:bold;color:#155b9e;margin:-4px 0 10px"></div><div style="text-align:center"><button id="newRound" class="danger">מחזור חדש</button></div><div id="cloudStatus" style="text-align:center;font-size:13px;color:#64748b;margin:6px 0"></div><div id="toast" role="status" aria-live="polite"></div>
+
+<details id="publicCfg"><summary>הגדרות הדף הציבורי</summary>
+ <div class="row" style="gap:12px;flex-wrap:wrap">
+  <label>כותרת <input id="cfgTitle" style="width:200px"></label>
+  <label>תאריך משחק <input id="cfgDate" type="date"></label>
+  <label>שעת הגרלת כוחות <input id="cfgDraw" type="time" value="20:45"></label>
+ </div>
+ <p class="muted">הדף הציבורי מציג את הסגל עד שעת ההגרלה; לאחר הפרסום ובהגיע השעה — מציג את הכוחות. "פרסם עכשיו" מציג מיד גם לפני השעה. השינויים מסתנכרנים אוטומטית.</p>
+ <div class="row">
+  <button id="publishPublic" class="export">פרסם כוחות (בשעת ההגרלה)</button>
+  <button id="publishNow" class="export">⚡ פרסם עכשיו!</button>
+  <button id="unpublishPublic" class="danger">מחק פרסום</button>
+ </div>
+ <div style="margin-top:8px"><span id="publishState" class="badge"></span></div>
+</details>
+
+<details id="pool"><summary>שחקנים <span class="muted" id="poolCount"></span></summary>
+ <details id="poolUpdate"><summary>הוספת שחקנים</summary>
+  <h4 class="input-heading">הכנס שחקן</h4>
+  <div class="row pool-single">
+   <input id="newName" placeholder="שם">
+   <input id="newRating" class="mini" type="number" min="0" max="5" step="0.001" placeholder="דירוג">
+   <select id="newFitness" title="כושר גופני"><option value="low">חלש</option><option value="mid" selected>בינוני</option><option value="high">גבוה</option></select>
+   <button id="add">הוסף</button>
+   <button id="clearSingle" class="secondary">נקה</button>
+  </div>
+  <h4 class="input-heading">הכנס רשימה</h4>
+  <textarea id="bulk" rows="3"></textarea>
+  <div class="row pool-tools">
+   <button id="import">הוסף</button>
+   <button id="fileButton" class="secondary">ייבא מקובץ</button>
+   <button id="exportPool" class="export">ייצא CSV</button>
+   <button id="exportPoolJson" class="export">ייצא JSON</button>
+   <button id="copyPool" class="secondary">העתק</button>
+   <input id="file" type="file" accept=".csv,.txt,.xlsx,.xls,.json" style="display:none">
+  </div>
+ </details>
+ <div class="rating-heading"><strong>טבלת דירוג</strong><button id="editToggle" class="secondary">עריכה</button><button id="clearPool" class="danger">נקה רשימה</button></div>
+ <div id="poolList"></div>
+ <h4 class="input-heading">סנכרון ענן</h4>
+ <p class="muted">הרשימה מסתנכרנת אוטומטית בין כל המכשירים. כל שינוי נשמר לענן.</p>
+ <div class="row pool-tools">
+  <button id="cloudReload" class="secondary">רענן מהענן</button>
+  <button id="cloudChangePw" class="secondary">החלף סיסמה</button>
+ </div>
+ <h4 class="input-heading">גיבוי מקומי לקובץ (JSON)</h4>
+ <p class="muted" id="backupStatus"></p>
+ <div class="row pool-tools">
+  <button id="backupPlayers" class="export">שמור</button>
+  <button id="restorePlayers" class="secondary">טען</button>
+  <input id="backupFile" type="file" accept=".json,application/json" style="display:none">
+ </div>
+</details>
+
+<details id="weekly" open><summary>בחירת סגל <span class="muted" id="weeklyCount"></span></summary>
+ <div class="row"><label>מספר שחקנים למחזור <input id="target" type="number" min="3" step="1" value="15" class="mini"></label></div>
+ <h4 class="input-heading">הכנס שחקן או רשימה</h4>
+ <textarea id="names"></textarea>
+ <div class="row"><button id="pick">הוסף לרשימה</button><button id="clearNames" class="secondary">נקה חלון</button></div>
+</details>
+
+<details id="roster" open><summary>סגל</summary>
+ <h3>הרכב</h3><div id="selectedList"></div>
+ <h3>מחליפים <span id="subCount"></span></h3><div id="subList"></div>
+ <details id="together"><summary>משחק יחד (למחזור זה)</summary>
+  <p class="muted">הבחירות חלות על המחזור הנוכחי בלבד, אינן נשמרות במאגר, והאלגוריתם ישתדל לכבד אותן אך יעדיף איזון.</p>
+  <div id="togetherList"></div>
+ </details>
+ <div class="row roster-actions"><button id="shareRosterText">שתף סגל</button><button id="clearRoster" class="danger">נקה סגל</button></div>
+</details>
+
+<details><summary>יצירת קבוצות</summary>
+ <div class="row"><button id="generate">צור קבוצות</button><button id="reshuffle" class="secondary">הגרל שוב</button><button id="undo" class="secondary">בטל החלפה</button></div>
+ <p class="muted">שלושת החזקים ושלושת החלשים מפוזרים אוטומטית אחד לכל קבוצה. להחלפה ידנית: לחץ על שחקן בקבוצה אחת ואז על שחקן בקבוצה אחרת.</p>
+ <div id="teams" class="teams"></div>
+ <div id="diff" class="balance"></div>
+</details>
+
+<details id="publish"><summary>פרסום כוחות</summary>
+ <div id="finalPanel" style="display:block"><h2 style="text-align:center">⚽ כוחות ⚽</h2><div id="finalTeams" class="teams final"></div></div>
+ <div class="row publish-actions"><button id="share">שתף כוחות</button><button id="download" class="secondary">הורד כוחות</button><button id="saveForLater" class="secondary">שמור</button><button id="copy" class="secondary">העתק</button></div>
+</details>
+
+<details id="previous"><summary>כוחות קודמים</summary><div id="previousList"></div></details>
+
+<details id="history"><summary>היסטוריית מחזורים <span class="muted" id="historyCount"></span></summary>
+ <div class="row pool-tools">
+  <button id="saveRoundBtn">שמור מחזור נוכחי</button>
+  <button id="exportHistory" class="export">ייצא JSON</button>
+  <button id="importHistory" class="secondary">ייבא JSON</button>
+  <button id="clearHistory" class="danger">נקה היסטוריה</button>
+  <input id="historyFile" type="file" accept=".json,application/json" style="display:none">
+ </div>
+ <div id="historyList"></div>
+</details>
+
+<p class="muted">הנתונים נשמרים מקומית בדפדפן זה בלבד. מומלץ לשמור עותק גיבוי (JSON) של השחקנים ושל היסטוריית המחזורים.</p><p class="muted" style="text-align:center;font-size:12px;opacity:.7">גרסה 43</p></main>
+
+<dialog id="ratingReviewDialog"><h3>בדיקת שינויי דירוג</h3><p class="muted">השחקנים הבאים כבר קיימים במאגר עם דירוג שונה. בחר אילו לעדכן:</p><div id="ratingReviewList"></div><div class="row"><button id="ratingUpdateAll">עדכן לכולם</button><button id="ratingApplySelected" class="secondary">עדכן מסומנים</button><button id="ratingSkipAll" class="secondary">דלג</button></div></dialog>
+<dialog id="colorDialog"><h3>בחר צבע לקבוצה</h3><div id="colorChoices" class="row"></div><button id="colorCancel" class="secondary">ביטול</button></dialog>
+<dialog id="replaceSavedDialog"><h3>כבר שמורים שני כוחות</h3><p>בחר איזו שמירה להחליף:</p><div id="replaceSavedChoices"></div><button id="cancelSaved" class="secondary">ביטול</button></dialog>
+<dialog id="addMissingDialog"><h3>שחקן לא נמצא במאגר</h3><div id="similarPlayers"></div><label>שם <input id="missingName"></label><label>דירוג (0–5) <input id="missingRating" type="number" min="0" max="5" step="0.001" value="3"></label><label>כושר גופני <select id="missingFitness"><option value="low">חלש</option><option value="mid" selected>בינוני</option><option value="high">גבוה</option></select></label><div class="row"><button id="saveMissing">הוסף למאגר ולסגל</button><button id="skipMissing" class="secondary">דלג</button><button id="cancelMissing" class="danger">בטל קליטה</button></div></dialog>
+<dialog id="duplicateDialog"><h3 id="duplicateTitle">שחקנים שכבר בסגל</h3><div id="duplicateExisting"></div><p>בחר שחקנים נוספים או צור שחקן חדש:</p><div id="duplicateChoices"></div><div class="row"><button id="duplicateConfirm">הוסף מסומנים</button><button id="duplicateNew" class="secondary">שחקן חדש</button><button id="duplicateSkip" class="secondary">דלג</button><button id="duplicateCancel" class="danger">בטל קליטה</button></div></dialog>
+<dialog id="promoteDialog"><h3>את מי להחליף בהרכב?</h3><div id="promoteChoices"></div><div class="row"><button id="promoteCancel" class="secondary">ביטול</button></div></dialog>
+<dialog id="matchDialog"><h3 id="matchTitle">בחר שחקן</h3><div id="matchChoices"></div><div class="row"><button id="confirmMatches">הוסף מסומנים</button><button id="skipMatch" class="secondary">דלג על שם זה</button><button id="cancelMatch" class="danger">בטל קליטה</button></div></dialog>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id),KEY='team-balancer-v1',STATE='team-balancer-state-v7',HKEY='rounds-history-v1',ROUND='team-balancer-round-v2';
+/* פרמטרי אלגוריתם */
+const FIT_VALUES=['low','mid','high'],FIT_LABEL={low:'חלש',mid:'בינוני',high:'גבוה'},FIT_NUM={low:1,mid:2,high:3};
+const W_BALANCE=20,W_SPREAD=0.3,W_FITNESS=2.2,LINK_PENALTY=2;
+let duplicateItems=[],savedTeams=[],promoteId=null,colorTarget=0,teamColors=["blue","red","yellow"],players=[],selected=[],subs=[],pickHistory=[],teams=null,history=[],first=null,editing=false,queue=[],pending=[],pendingReplace=false,timer,uncertain=new Set(),pendingUncertain=new Set(),currentQuestion=false,linkWith={},linkWithout={},roundHistory=[],roundNumber=1;
+let cfg={title:'כדורגל שבועי',drawTime:'20:45',matchDate:'',published:false,forceNow:false};const CFGKEY='team-balancer-cfg-v1';
+const id=()=>typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+const nameMatch=(full,query)=>{const f=norm(full),q=norm(query);return f===q||f.startsWith(q+' ')||f.split(' ').includes(q)};
+const norm=s=>String(s||'').normalize('NFKC').replace(/[׳‘’ʼ`´]/g,"'").replace(/[״“”]/g,'\"').replace(/[‎‏​]/g,'').trim().replace(/\s+/g,' ').toLowerCase();
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const normFit=f=>FIT_VALUES.includes(f)?f:'mid';
+const player=i=>players.find(p=>p.id===i);
+const sorted=()=>[...players].sort((a,b)=>b.rating-a.rating||a.name.localeCompare(b.name,'he'));
+function dl(text,name,mime){const blob=new Blob([text],{type:mime||'text/plain;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
+function toast(s){const e=$('toast');e.textContent=s;e.style.display='block';clearTimeout(timer);timer=setTimeout(()=>e.style.display='none',3000)}
+/* ===== סנכרון ענן (Netlify Functions + Blobs) ===== */
+const CLOUD_URL='/api/players',PWKEY='team-balancer-pw';
+let cloudPw=localStorage.getItem(PWKEY)||'',cloudReady=false,cloudTimer=null,lastCloudSig='';
+function cloudStatus(txt,cls){const el=$('cloudStatus');if(!el)return;el.textContent=txt;el.style.color=cls==='err'?'#b73343':cls==='ok'?'#19806b':'#64748b'}
+function buildPublish(){const names=ids=>ids.map(i=>player(i)?.name||'').filter(Boolean);const limit=+$('target').value||15;return{title:cfg.title,round:roundNumber,drawTime:cfg.drawTime,matchDate:cfg.matchDate,published:!!cfg.published,forceNow:!!cfg.forceNow,colors:[...teamColors],lineup:names(selected.slice(0,limit)),guests:names([...selected.slice(limit),...subs]),teams:cfg.published&&teams?teams.map(g=>names(g)):null}}
+function playersSig(){return JSON.stringify([players.map(p=>[p.id,p.name,p.rating,p.fitness]),buildPublish()])}
+async function cloudGet(pw){const r=await fetch(CLOUD_URL,{headers:{'x-app-password':pw},cache:'no-store'});if(r.status===401)throw Object.assign(Error('סיסמה שגויה'),{code:401});if(!r.ok)throw Error('שגיאת שרת '+r.status);return r.json()}
+async function cloudPut(pw){const r=await fetch(CLOUD_URL,{method:'POST',headers:{'content-type':'application/json','x-app-password':pw},body:JSON.stringify({players,publish:buildPublish()})});if(!r.ok)throw Error('שמירה נכשלה '+r.status);return r.json()}
+function scheduleCloudSave(){if(!cloudReady||!cloudPw)return;const sig=playersSig();if(sig===lastCloudSig)return;clearTimeout(cloudTimer);cloudStatus('שומר לענן…');cloudTimer=setTimeout(async()=>{try{await cloudPut(cloudPw);lastCloudSig=sig;cloudStatus('מסונכרן ✓','ok')}catch(e){cloudStatus('שמירה לענן נכשלה — יישמר מקומית','err')}},800)}
+async function cloudInit(){if(location.protocol==='file:'){cloudStatus('מצב מקומי — ללא סנכרון ענן');return}
+ let pw=cloudPw;
+ while(true){if(!pw){pw=prompt('הזן סיסמה לצפייה ולסנכרון רשימת השחקנים:')||'';if(!pw){cloudStatus('ללא סיסמה — עובד מקומית בלבד');return}}
+  try{cloudStatus('טוען מהענן…');const data=await cloudGet(pw);cloudPw=pw;localStorage.setItem(PWKEY,pw);
+   if(data&&data.publish&&typeof data.publish==='object'){const p=data.publish;cfg={...cfg,title:p.title||cfg.title,drawTime:p.drawTime||cfg.drawTime,matchDate:p.matchDate||cfg.matchDate,published:!!p.published,forceNow:!!p.forceNow};syncCfgInputs()}
+   const list=parsePlayers(data);
+   if(list.length){/* הענן הוא מקור האמת */cloudReady=false;applyPlayers(list);lastCloudSig=playersSig();cloudReady=true;cloudStatus('מסונכרן ✓','ok')}
+   else{/* ענן ריק — נדחוף את מה שיש מקומית (אם יש) */cloudReady=true;lastCloudSig=players.length?'':playersSig();if(players.length)scheduleCloudSave();cloudStatus('מסונכרן ✓','ok')}
+   return;
+  }catch(e){if(e.code===401){cloudPw='';localStorage.removeItem(PWKEY);pw='';alert('סיסמה שגויה, נסה שוב')}else{cloudReady=false;cloudStatus('אין חיבור לענן — עובד מקומית','err');return}}}
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(players));localStorage.setItem(CFGKEY,JSON.stringify(cfg));sessionStorage.setItem(STATE,JSON.stringify({target:+$('target').value}));persistRound()}catch(e){toast('לא ניתן לשמור בדפדפן זה')}scheduleCloudSave()}
+function persistRound(){try{localStorage.setItem(ROUND,JSON.stringify({roundNumber,target:+$('target').value,selected,subs,uncertain:[...uncertain],linkWith,linkWithout,teamColors:[...teamColors],teams,finalShown:$('finalPanel').style.display!=='none'}))}catch(e){}}
+function load(){try{const a=JSON.parse(localStorage.getItem(KEY)||'[]');players=a.filter(p=>p&&typeof p.name==='string'&&Number.isFinite(+p.rating)).map(p=>({id:String(p.id||id()),name:p.name.trim(),rating:+p.rating,fitness:normFit(p.fitness)}));const s=JSON.parse(sessionStorage.getItem(STATE)||'{}');try{savedTeams=JSON.parse(localStorage.getItem('saved-forces-v1')||'[]').slice(0,2)}catch(e){savedTeams=[]}try{roundHistory=JSON.parse(localStorage.getItem(HKEY)||'[]');if(!Array.isArray(roundHistory))roundHistory=[]}catch(e){roundHistory=[]}
+ try{const c=JSON.parse(localStorage.getItem(CFGKEY)||'null');if(c&&typeof c==='object')cfg={...cfg,...c}}catch(e){}
+ selected=[];subs=[];uncertain.clear();linkWith={};linkWithout={};teams=null;roundNumber=1;
+ try{const r=JSON.parse(localStorage.getItem(ROUND)||'null');if(r){const ids=new Set(players.map(p=>p.id));roundNumber=Number.isInteger(r.roundNumber)&&r.roundNumber>0?r.roundNumber:1;selected=(r.selected||[]).filter(i=>ids.has(i));subs=(r.subs||[]).filter(i=>ids.has(i));uncertain=new Set((r.uncertain||[]).filter(i=>ids.has(i)));linkWith=r.linkWith&&typeof r.linkWith==='object'?r.linkWith:{};linkWithout=r.linkWithout&&typeof r.linkWithout==='object'?r.linkWithout:{};if(Array.isArray(r.teamColors)&&r.teamColors.length===3)teamColors.splice(0,3,...r.teamColors);if(Array.isArray(r.teams)&&r.teams.length===3&&r.teams.every(g=>Array.isArray(g)&&g.every(i=>ids.has(i))))teams=r.teams.map(g=>[...g]);if(r.target)$('target').value=r.target;else if(s.target)$('target').value=s.target;if(teams&&r.finalShown)setTimeout(()=>{$('finalPanel').style.display='block'},0)}else if(s.target)$('target').value=s.target}catch(e){}
+ }catch(e){players=[];selected=[];subs=[];teams=null}}
+function checkpoint(){pickHistory.push({selected:[...selected],subs:[...subs]});if(pickHistory.length>40)pickHistory.shift()}
+function resetTeams(){teams=null;history=[];first=null}
+function rosterSet(){return new Set([...selected,...subs])}
+function pruneLinks(){const r=rosterSet();for(const m of [linkWith,linkWithout])for(const k of Object.keys(m)){if(!r.has(k)||!r.has(m[k]))delete m[k]}}
+function render(){pruneLinks();$('roundLabel').textContent='מחזור מספר '+roundNumber;const a=sorted();$('poolCount').textContent=`(${players.length})`;$('weeklyCount').textContent=`(${selected.length}/${+$('target').value})`;$('subCount').textContent=`(${subs.length})`;$('historyCount').textContent=`(${roundHistory.length})`;$('poolList').classList.toggle('editing',editing);$('editToggle').textContent=editing?'סיום עריכה':'עריכה';
+ $('poolList').innerHTML=a.map((p,i)=>`<div class="pool-row"><span class="pool-num">${i+1}.</span><span class="pool-cell-name"><span class="viewonly pool-name">${esc(p.name)}</span><input class="editonly pool-name" data-name="${esc(p.id)}" value="${esc(p.name)}"></span><span class="pool-cell-rating"><span class="viewonly pool-rating">${p.rating}</span><span class="editonly rating-editor"><input type="number" min="0" max="5" step="0.1" data-rating="${esc(p.id)}" value="${p.rating}"><span class="rating-arrows"><button type="button" title="העלה 0.1" aria-label="העלה דירוג" data-step-rating="${esc(p.id)}" data-delta="1">▲</button><button type="button" title="הורד 0.1" aria-label="הורד דירוג" data-step-rating="${esc(p.id)}" data-delta="-1">▼</button></span></span></span><span class="pool-cell-fitness"><span class="viewonly pool-fitness">${FIT_LABEL[p.fitness]}</span><select class="editonly" data-fitness="${esc(p.id)}">${FIT_VALUES.map(v=>`<option value="${v}" ${v===p.fitness?'selected':''}>${FIT_LABEL[v]}</option>`).join('')}</select></span><span class="pool-del"><button class="small danger editonly" data-delete="${esc(p.id)}">מחק</button></span></div>`).join('');
+ $('selectedList').innerHTML=selected.map((i,n)=>{const p=player(i);return p?`<div class="roster-row ${uncertain.has(i)?'roster-question':''}"><span class="roster-num">${n+1}.</span><span class="roster-name">${esc(p.name)}</span><span class="roster-rating">${p.rating}</span><span class="acts">${uncertain.has(i)?`<button class="small roster-confirm" data-confirm-player="${esc(i)}" title="אשר שחקן">✓</button>`:''}<button class="small secondary" data-replace="${esc(i)}">החלף</button><button class="small danger" data-unselect="${esc(i)}">הסר</button></span></div>`:''}).join('')+Array.from({length:Math.max(0,(+$('target').value||15)-selected.length)},(_,n)=>`<div class="roster-row"><span class="roster-num">${selected.length+n+1}.</span><span class="roster-name muted">מקום פנוי</span><span class="roster-rating"></span><span class="acts"><button class="small secondary" data-addslot="1">הוסף</button></span></div>`).join('');
+ $('subList').innerHTML=subs.map((i,n)=>{const p=player(i);return p?`<div class="roster-row ${uncertain.has(i)?'roster-question':''}"><span class="roster-num">${n+1}.</span><span class="roster-name">${esc(p.name)}</span><span class="roster-rating">${p.rating}</span><span class="acts">${uncertain.has(i)?`<button class="small roster-confirm" data-confirm-player="${esc(i)}" title="אשר שחקן">✓</button>`:''}<button class="small secondary" data-promote="${esc(i)}">להרכב</button><button class="small danger" data-remove-sub="${esc(i)}">הסר</button></span></div>`:''}).join('')||'<p class="muted">אין מחליפים</p>';
+ renderTogether();renderTeams();renderPrevious();renderHistory();save()}
+
+function renderTogether(){const box=$('togetherList');if(!box)return;const ids=[...selected,...subs];if(ids.length<2){box.innerHTML='<p class="muted">הוסף לפחות שני שחקנים לסגל כדי להגדיר העדפות.</p>';return}const opts=(self,cur,ph)=>`<option value="">${ph}</option>`+ids.filter(o=>o!==self).map(o=>`<option value="${esc(o)}" ${o===cur?'selected':''}>${esc(player(o)?.name||'')}</option>`).join('');box.innerHTML=`<div class="together-row together-head"><span>שחקן</span><span>לשחק עם</span><span>לא לשחק עם</span></div>`+ids.map(i=>{const p=player(i);return p?`<div class="together-row"><span class="together-name">${esc(p.name)}</span><select data-with="${esc(i)}" title="לשחק עם">${opts(i,linkWith[i]||'','✓ לשחק עם…')}</select><select data-without="${esc(i)}" title="לא לשחק עם">${opts(i,linkWithout[i]||'','✗ לא עם…')}</select></div>`:''}).join('')}
+
+let ratingChanges=[];
+function fitFromText(s){s=norm(s);if(!s)return undefined;if(/חלש|low|weak|נמוך/.test(s))return'low';if(/גבוה|high|strong|חזק/.test(s))return'high';if(/בינוני|mid|medium|average|normal/.test(s))return'mid';return undefined}
+function parseBulk(t){const out=[],bad=[];const rows=String(t).replace(/^﻿/,'').replace(/\r\n?/g,'\n').split('\n');for(let line of rows){line=line.trim();if(!line)continue;let parts=[];if(line.includes('\t'))parts=line.split('\t').map(x=>x.trim());else if(line.includes(';'))parts=line.split(';').map(x=>x.trim());else if(line.includes(',')){parts=line.match(/(?:"(?:[^"]|"")*"|[^,])+/g)?.map(x=>x.trim().replace(/^"|"$/g,'').replace(/""/g,'"'))||[]}let name='',rawRating='',rawFit='';if(parts.length>=3&&/^\d{1,4}\.?$/.test(parts[0])){name=parts[1];rawRating=parts[2];rawFit=parts[3]||''}else if(parts.length>=2){name=parts[0];rawRating=parts[1];rawFit=parts[2]||''}else{const m=line.match(/^(.*?)\s+([0-5](?:[.,]\d+)?)\s*$/);if(m){name=m[1];rawRating=m[2]}}name=name.replace(/^\s*\d{1,4}\s*[.)\-:]\s*/,'').trim();const rating=Number(String(rawRating).replace(',','.'));if(!name||!String(rawRating).trim()||!Number.isFinite(rating)||rating<0||rating>5){if(!/^(?:מיקום|שם|דירוג|כושר|position|name|rating|fitness)(?:\s*[,;\t]|$)/i.test(line))bad.push(line);continue}out.push({name,rating,fitness:fitFromText(rawFit)})}return{out,bad}}
+function importRows(rows,bad=[]){let added=0,same=0;const changes=new Map();for(const r of rows){const key=norm(r.name);let p=players.find(x=>norm(x.name)===key);if(p){if(Math.abs(p.rating-r.rating)<0.000001){same++;changes.delete(p.id)}else changes.set(p.id,{id:p.id,name:p.name,old:p.rating,next:r.rating})}else{players.push({id:id(),name:r.name,rating:r.rating,fitness:normFit(r.fitness)});added++}}ratingChanges=[...changes.values()];$('bulk').value='';render();const note=`נוספו ${added} · ללא שינוי ${same}${bad.length?' · שורות שלא נקלטו '+bad.length:''}`;if(ratingChanges.length){showRatingReview();toast(note+' · ממתינים לאישור '+ratingChanges.length+' דירוגים')}else toast(note)}
+function showRatingReview(){const list=$('ratingReviewList');list.innerHTML=ratingChanges.map((r,i)=>`<div class="rating-review-row" data-review-index="${i}"><strong>${esc(r.name)}</strong><span>${r.old} ← ${r.next}</span><label><input type="checkbox" data-review-check="${i}" checked> עדכן</label><button type="button" class="secondary" data-review-skip="${i}">דלג</button></div>`).join('');$('ratingReviewDialog').showModal()}
+function finishRatingReview(all){let updated=0;for(let i=0;i<ratingChanges.length;i++){const item=ratingChanges[i];if(all||$('ratingReviewList').querySelector(`input[data-review-check="${i}"]`)?.checked){const p=player(item.id);if(p){p.rating=item.next;updated++}}}ratingChanges=[];$('ratingReviewDialog').close();render();toast(`עודכנו ${updated} דירוגים`)}
+$('ratingReviewList').onclick=e=>{const b=e.target.closest('[data-review-skip]');if(!b)return;const row=b.closest('[data-review-index]');row.querySelector('input[type=checkbox]').checked=false;row.style.opacity='.55';b.textContent='דולג'};$('ratingUpdateAll').onclick=()=>finishRatingReview(true);$('ratingApplySelected').onclick=()=>finishRatingReview(false);$('ratingSkipAll').onclick=()=>{ratingChanges=[];$('ratingReviewDialog').close();toast('דילגת על שינויי הדירוג')};$('ratingReviewDialog').addEventListener('cancel',()=>{ratingChanges=[]});
+function parseNames(t){const lines=String(t).replace(/\r\n?/g,"\n").replace(/(^|[\n;,]\s*|[ \t]+)(\d{1,3})[ \t]*[.)\-:][ \t]*(?=\p{L})/gu,"$1\n$2. ").split(/[\n;,]+/);return lines.map(v=>v.trim().replace(/^\d{1,3}[ \t]*[.)\-:]?[ \t]*/,"").replace(/\s+[\-–]?[#]?\d{1,3}\s*$/," ").trim().replace(/\?\s*$/," ").trim().replace(/\s+/g," ")).filter(v=>{const words=v.split(" ");return words.length>=1&&words.length<=4&&v.length<=45&&words.every(w=>/^[\p{L}\p{M}'’׳"״־-]+$/u.test(w))})}
+function similarTo(name){const q=norm(name);if(!q)return [];const qw=q.split(' ');return sorted().filter(p=>{const f=norm(p.name),fw=f.split(' ');if(nameMatch(p.name,name))return false;if(fw.length!==qw.length)return false;let errors=0;for(let i=0;i<qw.length;i++){if(fw[i]===qw[i])continue;const diff=editDistance(fw[i],qw[i]);const maxDiff=Math.min(2,Math.floor(Math.min(fw[i].length,qw[i].length)/3));if(!maxDiff||diff>maxDiff)return false;errors++}return errors===1}).slice(0,8)}
+function editDistance(a,b){let prev=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){const row=[i];for(let j=1;j<=b.length;j++)row[j]=Math.min(row[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=row}return prev[b.length]}
+function chooseNames(replace){duplicateItems=[];const lines=String($('names').value).replace(/\r\n?/g,'\n').split(/[\n;,]+/);const names=lines.flatMap(line=>{const cleaned=line.replace(/[\*_~`]+/g,' ').replace(/[‎‏​]/g,' ').replace(/\(\s*\?\s*\)/g,' ? ').replace(/\s+/g,' ').trim();const question=cleaned.includes('?');const withoutQuestion=cleaned.replace(/\?/g,' ').replace(/\(\s*\)/g,' ').replace(/\s+/g,' ').trim();return parseNames(withoutQuestion).map(name=>({name,question}))});if(!names.length)return toast('לא נמצאו שמות');queue=names.map(v=>({...v,matches:sorted().filter(p=>nameMatch(p.name,v.name))}));pendingReplace=replace;pending=replace?[]:[...selected,...subs];pendingUncertain=new Set([...uncertain]);nextMatch()}
+function openMissing(name){$('missingName').value=name;$('missingRating').value='3';$('missingFitness').value='mid';const near=similarTo(name);$('similarPlayers').innerHTML=near.length?'<p>נמצאו שמות דומים. אפשר לבחור שחקן קיים או ליצור חדש:</p>'+near.map(p=>`<button class="secondary" data-existing="${esc(p.id)}">${esc(p.name)} (${p.rating}) — הוסף קיים</button>`).join(''):'<p>לא נמצאו שמות דומים. אפשר להוסיף שחקן חדש:</p>';$('addMissingDialog').showModal()}
+function nextMatch(){if(!queue.length){if(duplicateItems.length){showDuplicateBatch();return}checkpoint();const limit=+$('target').value,uniq=[...new Set(pending)];selected=uniq.slice(0,limit);subs=uniq.slice(limit);uncertain=new Set([...pendingUncertain].filter(i=>uniq.includes(i)));resetTeams();$('matchDialog').close();$('names').value='';render();toast(`בהרכב ${selected.length}, מחליפים ${subs.length}`);return}const q=queue.shift();currentQuestion=!!q.question;const all=sorted().filter(p=>nameMatch(p.name,q.name));const already=all.filter(p=>pending.includes(p.id));const available=all.filter(p=>!pending.includes(p.id));if(already.length){if(all.length===1||available.length===0){if(currentQuestion)already.forEach(p=>pendingUncertain.add(p.id));nextMatch();return}duplicateItems.push({query:q.name,already:already.map(p=>p.id),available:available.map(p=>p.id)});nextMatch();return}if(available.length===1){pending.push(available[0].id);if(currentQuestion)pendingUncertain.add(available[0].id);nextMatch();return}if(!available.length){openMissing(q.name);return}$('matchTitle').textContent=`למי התכוונת כשכתבת "${q.name}"?`;$('matchChoices').innerHTML=available.map(p=>`<label class="item"><input type="checkbox" data-match="${esc(p.id)}"><span>${esc(p.name)} (${p.rating})</span></label>`).join('');$('matchDialog').showModal()}
+function showDuplicateBatch(){const items=duplicateItems;duplicateItems=[];$('duplicateTitle').textContent='שמות שכבר קיימים בסגל';$('duplicateExisting').innerHTML=items.map((item,index)=>`<div class="hint"><b>${esc(item.query)}</b> — כבר בסגל: ${item.already.map(i=>esc(player(i)?.name||'')).join(', ')}<div>${item.available.map(i=>`<label class="item"><input type="checkbox" data-duplicate="${esc(i)}"><span>${esc(player(i)?.name||'')}</span></label>`).join('')||'אין התאמות נוספות'}</div></div>`).join('');$('duplicateChoices').innerHTML='';$('duplicateDialog').dataset.query='';$('duplicateDialog').showModal()}
+const colors=teamColors,labels=["קבוצה 1","קבוצה 2","קבוצה 3"];const colorNames={red:"אדום",orange:"כתום",yellow:"צהוב",blue:"כחול",white:"לבן"};
+function renderPrevious(){const box=$('previousList');if(!box)return;box.innerHTML=savedTeams.length?savedTeams.map((v,k)=>`<div class="hint previous-entry"><b>שמירה ${k+1} — ${esc(v.date)}</b><div class="previous-teams">${v.groups.map((g,j)=>`<div class="team ${(v.colors||colors)[j]||colors[j]}"><div class="previous-team-label">${labels[j]}</div>${g.map(n=>`<div class="person">${esc(n)}</div>`).join('')}</div>`).join('')}</div><button class="small danger" data-remove-saved="${k}">מחק שמירה</button></div>`).join(''):'<p class="muted">אין כוחות שמורים</p>'}
+function renderHistory(){const box=$('historyList');if(!box)return;box.innerHTML=roundHistory.length?roundHistory.map(v=>`<div class="hint previous-entry"><div class="history-head"><b>${v.round?'מחזור '+esc(v.round)+' · ':''}${esc(v.date)}</b><button class="small danger" data-remove-round="${esc(v.id)}">מחק</button></div><div class="previous-teams">${v.teams.map((g,j)=>`<div class="team ${(v.colors||colors)[j]||colors[j]}"><div class="previous-team-label">${labels[j]}</div>${g.map(pl=>`<div class="person">${esc(typeof pl==='string'?pl:pl.name)}</div>`).join('')}</div>`).join('')}</div></div>`).join(''):'<p class="muted">אין מחזורים שמורים עדיין</p>'}
+function storeForces(index){if(!teams)return toast('יש ליצור כוחות תחילה');const entry={date:new Date().toLocaleString('he-IL'),groups:teams.map(g=>g.map(i=>player(i)?.name||'')),colors:[...teamColors]};if(index===undefined)savedTeams.push(entry);else savedTeams[index]=entry;savedTeams=savedTeams.slice(0,2);try{localStorage.setItem('saved-forces-v1',JSON.stringify(savedTeams))}catch(e){toast('לא ניתן לשמור בדפדפן')}renderPrevious();saveRound();toast('הכוחות נשמרו')}
+function saveRound(force){if(!teams)return;const entry={id:id(),round:roundNumber,date:new Date().toLocaleString('he-IL'),target:+$('target').value,colors:[...teamColors],teams:teams.map(g=>g.map(i=>({name:player(i)?.name||'',rating:player(i)?.rating||0,fitness:player(i)?.fitness||'mid'})))};const sig=JSON.stringify(entry.teams);const last=roundHistory[0];if(!force&&last&&JSON.stringify(last.teams)===sig)return;roundHistory.unshift(entry);if(roundHistory.length>50)roundHistory.length=50;try{localStorage.setItem(HKEY,JSON.stringify(roundHistory))}catch(e){}renderHistory();$('historyCount').textContent=`(${roundHistory.length})`}
+
+function sum(t){return t.reduce((s,i)=>s+(player(i)?.rating||0),0)}
+function score(t){const means=t.map(a=>a.length?sum(a)/a.length:0),avg=means.reduce((a,b)=>a+b,0)/3;let c=means.reduce((s,x)=>s+(x-avg)**2,0)*W_BALANCE;const overall=selected.map(i=>player(i)?.rating||0).sort((a,b)=>b-a);const cut1=overall[Math.floor(overall.length/3)-1]??5,cut2=overall[Math.floor(overall.length*2/3)-1]??0;for(const threshold of [cut1,cut2]){const counts=t.map(a=>a.filter(i=>(player(i)?.rating||0)>=threshold).length);c+=counts.reduce((s,x)=>s+(x-counts.reduce((a,b)=>a+b,0)/3)**2,0)*W_SPREAD}
+ /* איזון כושר גופני בין הקבוצות */
+ const fitSums=t.map(a=>a.reduce((s,i)=>s+FIT_NUM[player(i)?.fitness||'mid'],0)),fitAvg=fitSums.reduce((a,b)=>a+b,0)/3;c+=fitSums.reduce((s,x)=>s+(x-fitAvg)**2,0)*W_FITNESS;
+ /* משחק יחד — רך */
+ const where={};t.forEach((a,k)=>a.forEach(i=>where[i]=k));for(const a in linkWith){const b=linkWith[a];if(where[a]!=null&&where[b]!=null&&where[a]!==where[b])c+=LINK_PENALTY}for(const a in linkWithout){const b=linkWithout[a];if(where[a]!=null&&where[b]!=null&&where[a]===where[b])c+=LINK_PENALTY}
+ return c}
+function shuffleArr(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function makeTeams(){const count=+$('target').value;if(!Number.isInteger(count)||count<3)return toast('יש להגדיר לפחות 3 מקומות');if(selected.length<3)return toast('יש לבחור לפחות 3 שחקנים');
+ const ranked=[...selected].sort((a,b)=>(player(b)?.rating||0)-(player(a)?.rating||0)||String(a).localeCompare(String(b)));
+ const N=ranked.length,useAnchors=N>=6;
+ const topAnchors=useAnchors?ranked.slice(0,3):[],bottomAnchors=useAnchors?ranked.slice(N-3):[];
+ const anchorSet=new Set([...topAnchors,...bottomAnchors]);
+ const middle=ranked.filter(i=>!anchorSet.has(i));
+ const cls=i=>topAnchors.indexOf(i)>=0?0:bottomAnchors.indexOf(i)>=0?1:2; /* 0 עליון · 1 תחתון · 2 אמצע */
+ let best=null,bestCost=Infinity;
+ for(let trial=0;trial<80;trial++){
+  let t=[[],[],[]];
+  if(useAnchors){const to=shuffleArr([0,1,2]),bo=shuffleArr([0,1,2]);topAnchors.forEach((pid,k)=>t[to[k]].push(pid));bottomAnchors.forEach((pid,k)=>t[bo[k]].push(pid))}
+  shuffleArr(middle).forEach(pid=>{t.reduce((m,x)=>x.length<m.length?x:m).push(pid)});
+  let cur=score(t);
+  for(let step=0;step<200;step++){let improvement=false;
+   for(let a=0;a<3;a++)for(let b=a+1;b<3;b++)for(let i=0;i<t[a].length;i++)for(let j=0;j<t[b].length;j++){
+    if(useAnchors&&cls(t[a][i])!==cls(t[b][j]))continue;
+    [t[a][i],t[b][j]]=[t[b][j],t[a][i]];let v=score(t);if(v+1e-9<cur){cur=v;improvement=true}else[t[a][i],t[b][j]]=[t[b][j],t[a][i]]}
+   if(!improvement)break}
+  if(cur<bestCost){bestCost=cur;best=t.map(x=>[...x])}}
+ teams=best;history=[];first=null;render();toast('נוצרו 3 קבוצות מאוזנות')}
+function renderTeams(){for(const [node,final] of [[$('teams'),false],[$('finalTeams'),true]]){node.innerHTML=teams?teams.map((t,k)=>`<div class="team ${colors[k]}"><h3>${labels[k]}</h3>${t.map(i=>{const p=player(i);return p?`<div class="person ${!final&&first&&first.id===i?'active':''}" ${final?'':`data-team="${k}" data-player="${esc(i)}"`}>${esc(p.name)}${final?'':` <span class="muted">(${p.rating})</span>`}</div>`:''}).join('')}${final?'':`<div class="total">ממוצע ${(sum(t)/t.length).toFixed(3)}</div><button class="color-change" data-color-team="${k}" type="button">שנה צבע</button>`}</div>`).join(''):'<p class="muted">לא נוצרו קבוצות עדיין</p>'}const means=teams?.filter(t=>t.length).map(t=>sum(t)/t.length)||[];const avg=means.length?means.reduce((a,b)=>a+b,0)/means.length:0;const balance=avg>0?(1-(Math.max(...means)-Math.min(...means))/avg)*100:100;$('diff').textContent=means.length?'רמת איזון: '+balance.toFixed(2)+'%':''}
+function textTeams(){return teams?'⚽ כוחות ⚽\n\n'+teams.map((t,k)=>labels[k]+'\n'+t.map(i=>player(i)?.name||'').join('\n')).join('\n\n'):''}
+function imageBlob(){return new Promise((resolve,reject)=>{if(!teams)return reject(Error('אין קבוצות'));const maxPlayers=Math.max(...teams.map(t=>t.length));const width=780,side=16,gap=10,col=(width-2*side-2*gap)/3,top=78,rowHeight=30,cardHeight=48+maxPlayers*rowHeight+14,height=top+cardHeight+18;const c=document.createElement('canvas');c.width=width;c.height=height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,width,height);x.textAlign='center';x.direction='rtl';x.fillStyle='#1c2b42';x.font='bold 33px Arial';x.fillText('⚽ כוחות ⚽',width/2,49);const palette={blue:['#e5f0ff','#4389d8'],red:['#ffe9e9','#db5460'],yellow:['#fff5cb','#e3b82b'],orange:['#fff0da','#e69533'],white:['#ffffff','#a6b2c2']};teams.forEach((t,k)=>{const left=side+(2-k)*(col+gap);x.fillStyle=palette[teamColors[k]][0];x.fillRect(left,top,col,cardHeight);x.strokeStyle=palette[teamColors[k]][1];x.lineWidth=2;x.strokeRect(left,top,col,cardHeight);x.fillStyle='#20324a';x.font='bold 23px Arial';x.fillText(labels[k],left+col/2,top+32);x.beginPath();x.moveTo(left+10,top+44);x.lineTo(left+col-10,top+44);x.stroke();x.font='20px Arial';t.forEach((pid,n)=>{x.fillText(player(pid)?.name||'',left+col/2,top+75+n*rowHeight,col-12)})});c.toBlob(b=>b?resolve(b):reject(Error('תמונה לא נוצרה')),'image/png')})}
+async function exportImage(share){try{const blob=await imageBlob(),file=new File([blob],'קבוצות.png',{type:'image/png'});if(share&&navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'קבוצות'});saveRound();return}const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download='קבוצות.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);saveRound();if(share)toast('התמונה נשמרה. ניתן לשלוח אותה בוואטסאפ')}catch(e){toast('לא ניתן ליצור תמונה: '+e.message)}}
+
+$('exportPool').onclick=()=>{const rows=[['מיקום','שם','דירוג','כושר'],...sorted().map((p,i)=>[i+1,p.name,p.rating,FIT_LABEL[p.fitness]])];const csv='﻿'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');dl(csv,'דירוג_שחקנים.csv','text/csv;charset=utf-8');toast('קובץ CSV נוצר')};
+$('copyPool').onclick=async()=>{const rows=[['מיקום','שם','דירוג','כושר'],...sorted().map((p,i)=>[i+1,p.name,p.rating,FIT_LABEL[p.fitness]])];const tsv=rows.map(r=>r.join('\t')).join('\n');try{await navigator.clipboard.writeText(tsv);toast('הטבלה הועתקה — הדבק באקסל או Google Sheets')}catch(e){const ta=document.createElement('textarea');ta.value=tsv;ta.style.position='fixed';ta.style.left='-9999px';document.body.append(ta);ta.select();const ok=document.execCommand('copy');ta.remove();toast(ok?'הטבלה הועתקה':'לא ניתן להעתיק אוטומטית בדפדפן זה')}};
+/* ===== שמירה/טעינה של מאגר כקובץ JSON (לסנכרון דרך git/Netlify) ===== */
+const BACKUP_NAME='players.json';
+function playersJSON(){return JSON.stringify({type:'team-balancer-players',version:1,exportedAt:new Date().toISOString(),players},null,2)}
+function parsePlayers(data){const arr=Array.isArray(data)?data:data.players;if(!Array.isArray(arr))throw Error('מבנה לא תקין');return arr.filter(p=>p&&typeof p.name==='string'&&Number.isFinite(+p.rating)).map(p=>({id:String(p.id||id()),name:p.name.trim(),rating:+p.rating,fitness:normFit(p.fitness)}))}
+function applyPlayers(list){players=list;selected=selected.filter(i=>player(i));subs=subs.filter(i=>player(i));uncertain=new Set([...uncertain].filter(i=>player(i)));
+ // שמור את הכוחות הקיימים אם כל השחקנים שבהם עדיין במאגר; אחרת אפס
+ if(teams&&teams.every(g=>g.every(i=>player(i))))teams=teams.map(g=>g.filter(i=>player(i)));else resetTeams();
+ save();render();return players.length}
+function updateBackupStatus(){const el=$('backupStatus');if(el)el.textContent='"שמור" מוריד עותק '+BACKUP_NAME+' למכשיר. "טען" קורא קובץ חזרה. גיבוי זה בלתי תלוי בענן.'}
+$('backupPlayers').onclick=()=>{dl(playersJSON(),BACKUP_NAME,'application/json');toast('הקובץ '+BACKUP_NAME+' הורד')};
+$('restorePlayers').onclick=()=>$('backupFile').click();
+$('backupFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());const list=parsePlayers(data);if(!confirm(`לטעון ${list.length} שחקנים ולהחליף את המאגר הנוכחי?`))return;applyPlayers(list);toast(`נטענו ${list.length} שחקנים`)}catch(err){toast('שגיאה בטעינה: '+err.message)}e.target.value=''};
+$('exportPoolJson').onclick=()=>{const d=new Date(),pad=n=>String(n).padStart(2,'0'),stamp=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;dl(playersJSON(),`players-${stamp}.json`,'application/json');toast('עותק גיבוי הורד')};
+$('cloudReload').onclick=async()=>{if(!cloudPw)return cloudInit();try{cloudStatus('טוען מהענן…');const data=await cloudGet(cloudPw);const list=parsePlayers(data);applyPlayers(list);lastCloudSig=playersSig();cloudStatus('מסונכרן ✓','ok');toast(`נטענו ${list.length} שחקנים מהענן`)}catch(e){cloudStatus('רענון נכשל','err');toast('שגיאה: '+e.message)}};
+$('cloudChangePw').onclick=()=>{cloudPw='';cloudReady=false;localStorage.removeItem(PWKEY);cloudInit()};
+function syncCfgInputs(){$('cfgTitle').value=cfg.title||'';$('cfgDate').value=cfg.matchDate||'';$('cfgDraw').value=cfg.drawTime||'20:45';$('publishState').textContent=cfg.published?(cfg.forceNow?'מצב: כוחות מפורסמים עכשיו':'מצב: כוחות יפורסמו בשעת ההגרלה'):'מצב: מציג סגל'}
+$('cfgTitle').oninput=()=>{cfg.title=$('cfgTitle').value.trim();save()};
+$('cfgDate').onchange=()=>{cfg.matchDate=$('cfgDate').value;save()};
+$('cfgDraw').onchange=()=>{cfg.drawTime=$('cfgDraw').value||'20:45';save()};
+$('publishPublic').onclick=()=>{if(!teams)return toast('יש ליצור כוחות תחילה');if(!cfg.matchDate&&!confirm('לא הוגדר תאריך משחק — הכוחות יתפרסמו בשעה זו בכל יום. להמשיך? (מומלץ להגדיר תאריך משחק תחילה)'))return;cfg.published=true;cfg.forceNow=false;syncCfgInputs();save();toast(cfg.matchDate?'הכוחות יפורסמו אוטומטית ביום המשחק בשעת ההגרלה':'הכוחות יפורסמו אוטומטית בשעה זו')};
+$('publishNow').onclick=()=>{if(!teams)return toast('יש ליצור כוחות תחילה');cfg.published=true;cfg.forceNow=true;syncCfgInputs();save();toast('הכוחות פורסמו עכשיו לדף הציבורי')};
+$('unpublishPublic').onclick=()=>{if(!cfg.published)return toast('אין פרסום פעיל');cfg.published=false;cfg.forceNow=false;syncCfgInputs();save();toast('הפרסום נמחק — הדף הציבורי יציג סגל')};
+$('add').onclick=()=>{const name=$('newName').value.trim(),rating=Number($('newRating').value),fitness=$('newFitness').value;if(!name||!$('newRating').value||rating<0||rating>5)return toast('יש להזין שם ודירוג 0–5');importRows([{name,rating,fitness}]);$('newName').value='';$('newRating').value='';$('newFitness').value='mid'};
+$('clearSingle').onclick=()=>{$('newName').value='';$('newRating').value='';$('newFitness').value='mid';$('newName').focus()};
+$('clearPool').onclick=()=>{if(!players.length)return toast('המאגר כבר ריק');if(!confirm('למחוק את כל מאגר השחקנים? פעולה זו תמחק גם את הסגל והקבוצות הנוכחיים, ולא ניתן לבטל אותה.'))return;players=[];selected=[];subs=[];uncertain.clear();queue=[];pending=[];pickHistory=[];linkWith={};linkWithout={};resetTeams();render();toast('מאגר השחקנים נמחק')};
+$('editToggle').onclick=()=>{editing=!editing;render()};
+$('poolList').onchange=e=>{const el=e.target;if(el.dataset.fitness){const p=player(el.dataset.fitness);if(!p)return;p.fitness=normFit(el.value);save();toast('הכושר עודכן');return}const p=player(el.dataset.name||el.dataset.rating);if(!p)return;if(el.dataset.name){const v=el.value.trim();if(!v||players.some(x=>x.id!==p.id&&norm(x.name)===norm(v)))return toast('שם חסר או כפול');p.name=v}else{const n=Number(el.value);if(!el.value||n<0||n>5)return toast('דירוג חייב להיות 0–5');p.rating=n}render();toast('השחקן עודכן')};
+$('poolList').onclick=e=>{const step=e.target.closest('button[data-step-rating]');if(step){const p=player(step.dataset.stepRating);if(!p)return;p.rating=Math.round(Math.max(0,Math.min(5,p.rating+Number(step.dataset.delta)*0.1))*10)/10;render();return}const b=e.target.closest('button[data-delete]');if(!b)return;const p=player(b.dataset.delete);if(!p)return;if(!confirm('למחוק את '+p.name+'?'))return;players=players.filter(x=>x.id!==p.id);selected=selected.filter(x=>x!==p.id);subs=subs.filter(x=>x!==p.id);resetTeams();render();toast('השחקן נמחק')};
+$('import').onclick=()=>{const {out,bad}=parseBulk($('bulk').value);if(!out.length)return toast('לא נמצאו שחקנים תקינים בהדבקה');importRows(out,bad)};
+$('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(/\.json$/i.test(f.name)){const data=JSON.parse(await f.text());const arr=Array.isArray(data)?data:data.players;if(!Array.isArray(arr))throw Error('מבנה JSON לא תקין');const rows=arr.filter(p=>p&&typeof p.name==='string'&&Number.isFinite(+p.rating)).map(p=>({name:p.name.trim(),rating:+p.rating,fitness:normFit(p.fitness)}));if(!rows.length)return toast('לא נמצאו שחקנים בקובץ');importRows(rows);e.target.value='';return}let text;if(/\.xlsx?$/i.test(f.name)){if(!window.XLSX){await new Promise((ok,fail)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=ok;s.onerror=fail;document.head.append(s)})}const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});text=XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]],{FS:'\t'})}else text=await f.text();const {out,bad}=parseBulk(text);if(!out.length)return toast('לא נמצאו שורות תקינות');importRows(out,bad)}catch(err){toast('שגיאה בקריאת הקובץ: '+err.message)}e.target.value=''};
+$('togetherList').onchange=e=>{const el=e.target,v=el.value;if(el.dataset.with!==undefined){const k=el.dataset.with;if(v)linkWith[k]=v;else delete linkWith[k]}else if(el.dataset.without!==undefined){const k=el.dataset.without;if(v)linkWithout[k]=v;else delete linkWithout[k]}toast('העדפת משחק יחד עודכנה (לחץ "צור קבוצות" להחלה)')};
+$('duplicateConfirm').onclick=()=>{const ids=[...$('duplicateExisting').querySelectorAll('input[data-duplicate]:checked')].map(x=>x.dataset.duplicate);pending.push(...ids.filter(i=>!pending.includes(i)));if(currentQuestion)ids.forEach(i=>pendingUncertain.add(i));$('duplicateDialog').close();nextMatch()};$('duplicateSkip').onclick=()=>{$('duplicateDialog').close();nextMatch()};$('duplicateNew').onclick=()=>{const name=prompt('שם שחקן חדש:');if(name){$('duplicateDialog').close();openMissing(name)}};$('duplicateCancel').onclick=()=>{queue=[];duplicateItems=[];$('duplicateDialog').close();toast('הקליטה בוטלה')};
+$('promoteCancel').onclick=()=>$('promoteDialog').close();$('promoteChoices').onclick=e=>{const b=e.target.closest('[data-swap]');if(!b||!promoteId)return;const old=b.dataset.swap;if(!subs.includes(promoteId))return;checkpoint();if(selected.includes(old)){selected=selected.map(i=>i===old?promoteId:i);subs=subs.map(i=>i===promoteId?old:i)}else if(subs.includes(old)){subs=subs.map(i=>i===promoteId?old:i===old?promoteId:i)}else return;promoteId=null;$('promoteDialog').close();resetTeams();render();toast('השחקנים הוחלפו')};
+$('shareRosterText').onclick=async()=>{const content='*⚽ סגל ⚽*\n\n'+[['הרכב',selected],['מחליפים',subs]].map(([title,ids])=>'*_'+title+':_*\n'+(ids.length?ids.map((i,n)=>`${n+1}. ${player(i)?.name||''}${uncertain.has(i)?' *_(?)_*':''}`).join('\n'):'—')).join('\n\n');if(navigator.share){try{await navigator.share({text:content,title:'סגל'});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(content);toast('הסגל הועתק, אפשר להדביק בוואטסאפ')}catch(e){const box=document.createElement('textarea');box.value=content;document.body.append(box);box.select();document.execCommand('copy');box.remove();toast('הסגל הועתק')}};
+$('newRound').onclick=()=>{if(!confirm('להתחיל מחזור חדש? כל בחירות המחזור, המחליפים, העדפות "משחק יחד" והקבוצות יימחקו. מאגר השחקנים והיסטוריית המחזורים יישמרו.'))return;if(teams&&confirm('לשמור את המחזור הנוכחי להיסטוריית המחזורים לפני האיפוס?'))saveRound(true);checkpoint();selected=[];subs=[];uncertain.clear();queue=[];pending=[];linkWith={};linkWithout={};teamColors.splice(0,3,'blue','red','yellow');resetTeams();roundNumber++;cfg.published=false;cfg.forceNow=false;syncCfgInputs();$('names').value='';$('target').value=15;$('finalPanel').style.display='none';render();toast('מחזור מספר '+roundNumber+' נפתח')};
+$('similarPlayers').onclick=e=>{const b=e.target.closest('[data-existing]');if(!b)return;const chosen=player(b.dataset.existing);if(chosen&&!pending.includes(chosen.id))pending.push(chosen.id);if(chosen&&currentQuestion)pendingUncertain.add(chosen.id);$('addMissingDialog').close();nextMatch()};
+$('saveMissing').onclick=()=>{const name=$('missingName').value.trim(),rating=Number($('missingRating').value),fitness=$('missingFitness').value;if(!name||!Number.isFinite(rating)||rating<0||rating>5)return toast('יש להזין שם ודירוג תקין בין 0 ל־5');const existing=players.find(p=>norm(p.name)===norm(name));const p=existing||{id:id(),name,rating,fitness:normFit(fitness)};if(!existing)players.push(p);if(!pending.includes(p.id))pending.push(p.id);if(currentQuestion)pendingUncertain.add(p.id);$('addMissingDialog').close();nextMatch()};
+$('skipMissing').onclick=()=>{$('addMissingDialog').close();nextMatch()};$('cancelMissing').onclick=()=>{queue=[];$('addMissingDialog').close();toast('הקליטה בוטלה')};
+$('clearNames').onclick=()=>{$('names').value='';$('names').focus();toast('חלון הזנת הרשימה נוקה')};
+$('clearRoster').onclick=()=>{if(!selected.length&&!subs.length)return toast('הסגל כבר ריק');if(!confirm('לנקות את כל הסגל, כולל ההרכב, המחליפים והעדפות "משחק יחד"?'))return;checkpoint();selected=[];subs=[];uncertain.clear();linkWith={};linkWithout={};resetTeams();render();toast('הסגל נוקה')};
+$('pick').onclick=()=>chooseNames(false);
+$('confirmMatches').onclick=()=>{const ids=[...$('matchChoices').querySelectorAll('input[data-match]:checked')].map(el=>el.dataset.match);if(!ids.length)return toast('יש לסמן לפחות שחקן אחד');pending.push(...ids.filter(i=>!pending.includes(i)));if(currentQuestion)ids.forEach(i=>pendingUncertain.add(i));$('matchDialog').close();nextMatch()};$('skipMatch').onclick=()=>{$('matchDialog').close();nextMatch()};$('cancelMatch').onclick=()=>{queue=[];$('matchDialog').close();toast('הקליטה בוטלה')};
+$('selectedList').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.confirmPlayer){uncertain.delete(b.dataset.confirmPlayer);render();return}if(b.dataset.addslot){const q=prompt('הקלד שם או חלק משם:');if(q){queue=[{name:q,matches:sorted().filter(p=>nameMatch(p.name,q)&&!selected.includes(p.id))}];pending=[...selected,...subs];nextMatch()}return}const pid=b.dataset.unselect||b.dataset.replace;if(b.dataset.unselect){checkpoint();selected=selected.filter(i=>i!==pid);uncertain.delete(pid);if(subs.length)selected.push(subs.shift());resetTeams();render();toast('השחקן הוסר מהמחזור')}else{const q=prompt('שם השחקן המחליף (אפשר שם חלקי):');if(!q)return;const matches=sorted().filter(p=>nameMatch(p.name,q)&&!selected.includes(p.id));if(matches.length===1){checkpoint();selected=selected.map(i=>i===pid?matches[0].id:i);resetTeams();render();toast('השחקן הוחלף')}else if(matches.length>1){queue=[{name:q,matches}];pending=selected.filter(i=>i!==pid).concat(subs);nextMatch()}else toast('לא נמצא שחקן מתאים')}};
+$('subList').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.confirmPlayer){uncertain.delete(b.dataset.confirmPlayer);render();return}const sid=b.dataset.promote||b.dataset.removeSub;if(!sid)return;if(b.dataset.removeSub){checkpoint();subs=subs.filter(x=>x!==sid);uncertain.delete(sid);resetTeams();render();return}if(!selected.length){checkpoint();subs=subs.filter(x=>x!==sid);selected.push(sid);resetTeams();render();return}promoteId=sid;$('promoteChoices').innerHTML='<h4>הרכב</h4>'+selected.map((s,n)=>`<button class="secondary" data-swap="${esc(s)}">${n+1}. ${esc(player(s)?.name||'')}</button>`).join('')+'<h4>מחליפים</h4>'+subs.filter(s=>s!==sid).map((s,n)=>`<button class="secondary" data-swap="${esc(s)}">${n+1}. ${esc(player(s)?.name||'')}</button>`).join('');$('promoteDialog').showModal()};
+$('target').onchange=()=>{checkpoint();const limit=Math.max(3,+$('target').value||15);$('target').value=limit;const all=[...selected,...subs];selected=all.slice(0,limit);subs=all.slice(limit);resetTeams();render()};
+$('generate').onclick=makeTeams;$('reshuffle').onclick=makeTeams;
+$('colorCancel').onclick=()=>$('colorDialog').close();$('colorChoices').onclick=e=>{const b=e.target.closest('[data-color]');if(!b)return;teamColors[colorTarget]=b.dataset.color;$('colorDialog').close();renderTeams()};
+$('teams').onclick=e=>{const colorButton=e.target.closest('[data-color-team]');if(colorButton){colorTarget=+colorButton.dataset.colorTeam;$('colorChoices').innerHTML=Object.entries(colorNames).map(([code,name])=>`<button class="secondary" data-color="${code}">${name}</button>`).join('');$('colorDialog').showModal();return}const el=e.target.closest('[data-player]');if(!el)return;const k=+el.dataset.team,i=el.dataset.player;if(!first){first={k,id:i};renderTeams();return}if(first.id===i){first=null;renderTeams();return}if(first.k===k){first={k,id:i};renderTeams();return}history.push(teams.map(t=>[...t]));const a=teams[first.k].indexOf(first.id),b=teams[k].indexOf(i);teams[first.k][a]=i;teams[k][b]=first.id;first=null;render();toast('ההחלפה בוצעה')};
+$('undo').onclick=()=>{if(!history.length)return toast('אין החלפה לביטול');teams=history.pop();first=null;render();toast('ההחלפה בוטלה')};
+$('fileButton').onclick=()=>$('file').click();
+$('saveForLater').onclick=()=>{if(!teams)return toast('יש ליצור כוחות תחילה');if(savedTeams.length<2)storeForces();else{$('replaceSavedChoices').innerHTML=savedTeams.map((v,k)=>`<button class="secondary" data-replace-saved="${k}">שמירה ${k+1}: ${esc(v.date)}</button>`).join('');$('replaceSavedDialog').showModal()}};
+$('replaceSavedChoices').onclick=e=>{const b=e.target.closest('[data-replace-saved]');if(!b)return;$('replaceSavedDialog').close();storeForces(+b.dataset.replaceSaved)};$('cancelSaved').onclick=()=>$('replaceSavedDialog').close();
+$('previousList').onclick=e=>{const b=e.target.closest('[data-remove-saved]');if(!b)return;savedTeams.splice(+b.dataset.removeSaved,1);localStorage.setItem('saved-forces-v1',JSON.stringify(savedTeams));renderPrevious()};
+$('download').onclick=()=>exportImage(false);$('share').onclick=()=>exportImage(true);
+$('copy').onclick=async()=>{if(!teams)return toast('יש ליצור קבוצות תחילה');try{await navigator.clipboard.writeText(textTeams());saveRound();toast('השמות הועתקו')}catch{toast('ההעתקה אינה זמינה בדפדפן זה')}};
+$('saveRoundBtn').onclick=()=>{if(!teams)return toast('יש ליצור כוחות תחילה');saveRound(true);toast('המחזור נשמר להיסטוריה')};
+$('exportHistory').onclick=()=>{if(!roundHistory.length)return toast('אין היסטוריה לייצוא');dl(JSON.stringify({type:'team-balancer-history',version:1,exportedAt:new Date().toISOString(),history:roundHistory},null,2),'rounds-history.json','application/json');toast('היסטוריית המחזורים יוצאה')};
+$('importHistory').onclick=()=>$('historyFile').click();
+$('historyFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());const incoming=Array.isArray(data)?data:(data.history||[]);if(!Array.isArray(incoming))throw Error('מבנה לא תקין');const map=new Map();[...incoming,...roundHistory].forEach(r=>{if(r&&r.teams){const rid=r.id||id();if(!map.has(rid))map.set(rid,{...r,id:rid})}});roundHistory=[...map.values()].slice(0,50);localStorage.setItem(HKEY,JSON.stringify(roundHistory));renderHistory();$('historyCount').textContent=`(${roundHistory.length})`;toast(`יובאו ${incoming.length} מחזורים`)}catch(err){toast('שגיאה בייבוא: '+err.message)}e.target.value=''};
+$('clearHistory').onclick=()=>{if(!roundHistory.length)return toast('ההיסטוריה כבר ריקה');if(!confirm('למחוק את כל היסטוריית המחזורים?'))return;roundHistory=[];localStorage.setItem(HKEY,JSON.stringify(roundHistory));renderHistory();$('historyCount').textContent='(0)';toast('ההיסטוריה נמחקה')};
+$('historyList').onclick=e=>{const b=e.target.closest('[data-remove-round]');if(!b)return;roundHistory=roundHistory.filter(r=>r.id!==b.dataset.removeRound);localStorage.setItem(HKEY,JSON.stringify(roundHistory));renderHistory();$('historyCount').textContent=`(${roundHistory.length})`};
+load();syncCfgInputs();render();updateBackupStatus();cloudInit();})();
+</script></body></html>

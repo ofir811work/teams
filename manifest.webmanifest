@@ -1,0 +1,23 @@
+{
+  "name": "כוחות - כדורגל שבועי",
+  "short_name": "כוחות",
+  "description": "סגל וכוחות למחזור הקרוב",
+  "id": "/",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d2947",
+  "theme_color": "#0d2947",
+  "dir": "rtl",
+  "lang": "he",
+  "categories": ["sports"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "ניהול (אדמין)", "short_name": "אדמין", "url": "admin.html", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
+  ]
+}
