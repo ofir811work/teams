@@ -66,7 +66,7 @@ textarea{width:100%;min-height:90px;resize:vertical}
 
 /* ===== סגל ===== */
 .roster-row{display:grid;grid-template-columns:30px minmax(80px,1fr) auto minmax(0,auto);gap:8px;align-items:center;padding:7px 6px;margin:3px 0;border-bottom:1px solid #e5ebf3;font-size:16px}
-#selectedList .roster-row{grid-template-columns:30px minmax(70px,1fr) auto auto minmax(0,auto)}
+#selectedList .roster-row{grid-template-columns:auto 26px minmax(70px,1fr) auto minmax(0,auto)}
 .roster-row .roster-num{color:#64748b;font-variant-numeric:tabular-nums}
 .roster-row .roster-name{overflow-wrap:anywhere}
 .roster-row .roster-rating{text-align:center;font-variant-numeric:tabular-nums;min-width:26px}
@@ -137,7 +137,7 @@ dialog::backdrop{background:#0007}
 }
 @media(max-width:540px){
  .roster-row{grid-template-columns:26px minmax(70px,1fr) auto auto;gap:5px;font-size:15px;padding:6px 3px}
- #selectedList .roster-row{grid-template-columns:26px minmax(60px,1fr) auto auto auto}
+ #selectedList .roster-row{grid-template-columns:auto 24px minmax(55px,1fr) auto auto}
  .roster-row .pay{padding:3px 5px;font-size:13px}
  .roster-row .acts{gap:3px}
  .together-row{gap:5px}
@@ -195,14 +195,12 @@ dialog::backdrop{background:#0007}
  #poolList select[data-fitness]{width:auto;max-width:110px}
 
  /* שורות סגל — הכל בשורה אחת, כפתורים קומפקטיים */
- .roster-row{grid-template-columns:22px minmax(0,1fr) auto;gap:5px;padding:9px 4px;font-size:16px}
- #selectedList .roster-row{grid-template-columns:22px minmax(0,1fr) auto 26px}
+ .roster-row{grid-template-columns:20px minmax(0,1fr) auto auto;gap:4px;padding:8px 3px;font-size:15px}
+ #selectedList .roster-row{grid-template-columns:auto 18px minmax(0,1fr) auto auto}
  .roster-row .roster-rating{min-width:0}
- .roster-row .pay{grid-column:3;padding:3px 5px;font-size:12px}
- #selectedList .roster-row .acts{grid-column:1 / -1;justify-content:flex-start;margin-top:4px}
- #subList .roster-row .acts{grid-column:1 / -1;justify-content:flex-start;margin-top:4px}
- .roster-row .acts{gap:4px;flex-wrap:nowrap}
- .roster-row .acts button{min-height:38px;padding:7px 9px;font-size:13px}
+ .roster-row .pay{padding:2px 4px;font-size:11px;gap:2px}
+ .roster-row .acts{gap:3px;flex-wrap:nowrap}
+ .roster-row .acts button{min-height:34px;padding:6px 6px;font-size:12px}
 
  /* משחק יחד — שם בשורה, שני תפריטים מתחת */
  .together-row{grid-template-columns:1fr 1fr;gap:6px 8px;padding:8px 4px}
@@ -393,7 +391,7 @@ function pruneLinks(){const r=rosterSet();for(const m of [linkWith,linkWithout])
 function render(){pruneLinks();$('roundLabel').textContent='מחזור מספר '+roundNumber;const a=sorted();$('poolCount').textContent=`(${players.length})`;$('weeklyCount').textContent=`(${selected.length}/${+$('target').value})`;$('subCount').textContent=`(${subs.length})`;$('historyCount').textContent=`(${roundHistory.length})`;$('poolList').classList.toggle('editing',editing);$('editToggle').textContent=editing?'סיום עריכה':'עריכה';
  $('poolList').innerHTML=a.map((p,i)=>`<div class="pool-row"><span class="pool-num">${i+1}.</span><span class="pool-cell-name"><span class="viewonly pool-name">${esc(p.name)}</span><input class="editonly pool-name" data-name="${esc(p.id)}" value="${esc(p.name)}"></span><span class="pool-cell-rating"><span class="viewonly pool-rating">${p.rating}</span><span class="editonly rating-editor"><input type="number" min="0" max="5" step="0.1" data-rating="${esc(p.id)}" value="${p.rating}"><span class="rating-arrows"><button type="button" title="העלה 0.1" aria-label="העלה דירוג" data-step-rating="${esc(p.id)}" data-delta="1">▲</button><button type="button" title="הורד 0.1" aria-label="הורד דירוג" data-step-rating="${esc(p.id)}" data-delta="-1">▼</button></span></span></span><span class="pool-cell-fitness"><span class="viewonly pool-fitness">${FIT_LABEL[p.fitness]}</span><select class="editonly" data-fitness="${esc(p.id)}">${FIT_VALUES.map(v=>`<option value="${v}" ${v===p.fitness?'selected':''}>${FIT_LABEL[v]}</option>`).join('')}</select></span><span class="pool-del"><button class="small danger editonly" data-delete="${esc(p.id)}">מחק</button></span></div>`).join('');
  const payBox=i=>`<label class="pay ${paid.has(i)?'is-paid':''}" title="סמן אם שילם"><input type="checkbox" data-paid="${esc(i)}" ${paid.has(i)?'checked':''}><span>₪</span></label>`;
- $('selectedList').innerHTML=selected.map((i,n)=>{const p=player(i);return p?`<div class="roster-row ${uncertain.has(i)?'roster-question':''}"><span class="roster-num">${n+1}.</span><span class="roster-name">${esc(p.name)}</span>${payBox(i)}<span class="roster-rating">${p.rating}</span><span class="acts">${uncertain.has(i)?`<button class="small roster-confirm" data-confirm-player="${esc(i)}" title="אשר שחקן">✓</button>`:''}<button class="small secondary" data-replace="${esc(i)}">החלף</button><button class="small danger" data-unselect="${esc(i)}">הסר</button></span></div>`:''}).join('')+Array.from({length:Math.max(0,(+$('target').value||15)-selected.length)},(_,n)=>`<div class="roster-row"><span class="roster-num">${selected.length+n+1}.</span><span class="roster-name muted">מקום פנוי</span><span class="pay-empty"></span><span class="roster-rating"></span><span class="acts"><button class="small secondary" data-addslot="1">הוסף</button></span></div>`).join('');
+ $('selectedList').innerHTML=selected.map((i,n)=>{const p=player(i);return p?`<div class="roster-row ${uncertain.has(i)?'roster-question':''}">${payBox(i)}<span class="roster-num">${n+1}.</span><span class="roster-name">${esc(p.name)}</span><span class="roster-rating">${p.rating}</span><span class="acts">${uncertain.has(i)?`<button class="small roster-confirm" data-confirm-player="${esc(i)}" title="אשר שחקן">✓</button>`:''}<button class="small secondary" data-replace="${esc(i)}">החלף</button><button class="small danger" data-unselect="${esc(i)}">הסר</button></span></div>`:''}).join('')+Array.from({length:Math.max(0,(+$('target').value||15)-selected.length)},(_,n)=>`<div class="roster-row"><span class="pay-empty"></span><span class="roster-num">${selected.length+n+1}.</span><span class="roster-name muted">מקום פנוי</span><span class="roster-rating"></span><span class="acts"><button class="small secondary" data-addslot="1">הוסף</button></span></div>`).join('');
  $('subList').innerHTML=subs.map((i,n)=>{const p=player(i);return p?`<div class="roster-row ${uncertain.has(i)?'roster-question':''}"><span class="roster-num">${n+1}.</span><span class="roster-name">${esc(p.name)}</span><span class="roster-rating">${p.rating}</span><span class="acts">${uncertain.has(i)?`<button class="small roster-confirm" data-confirm-player="${esc(i)}" title="אשר שחקן">✓</button>`:''}<button class="small secondary" data-promote="${esc(i)}">להרכב</button><button class="small danger" data-remove-sub="${esc(i)}">הסר</button></span></div>`:''}).join('')||'<p class="muted">אין מחליפים</p>';
  const payCount=selected.filter(i=>paid.has(i)).length,payTotal=selected.length;const pc=$('payCount');if(pc)pc.textContent=payTotal?`שילמו ${payCount}/${payTotal}`:'';
  renderTogether();renderTeams();renderPrevious();renderHistory();save()}
