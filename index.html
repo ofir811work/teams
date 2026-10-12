@@ -41,9 +41,13 @@ main{max-width:640px;margin:0 auto;padding:calc(14px + var(--safe-top)) 16px cal
 .countdown{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(57,180,255,.18),rgba(255,255,255,.08));
  border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:18px;padding:16px 18px;margin:0 auto 20px;max-width:440px;text-align:center;
  backdrop-filter:blur(6px);animation:fadeUp .5s .05s ease both}
-.countdown .label{font-size:13px;opacity:.85;letter-spacing:.3px}
-.countdown .time{font-size:34px;font-weight:800;letter-spacing:2px;font-variant-numeric:tabular-nums;margin-top:3px;color:#fff;text-shadow:0 2px 12px rgba(57,180,255,.4)}
-.countdown .sub{font-size:12.5px;opacity:.8;margin-top:5px}
+.countdown .label{font-size:14.5px;opacity:.92;letter-spacing:.2px;line-height:1.5}
+.countdown .label b{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.countdown .timer{display:flex;align-items:flex-start;justify-content:center;gap:4px;margin-top:10px}
+.countdown .seg{display:flex;flex-direction:column;align-items:center;min-width:58px}
+.countdown .seg .num{font-size:36px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;color:#fff;text-shadow:0 2px 14px rgba(57,180,255,.45)}
+.countdown .seg .cap{font-size:11px;opacity:.75;margin-top:5px;letter-spacing:.3px}
+.countdown .colon{font-size:30px;font-weight:800;line-height:1;padding-top:2px;opacity:.6}
 .countdown .pulse{position:absolute;inset:0;background:radial-gradient(60% 50% at 50% 0%,rgba(57,180,255,.25),transparent);pointer-events:none}
 
 /* cards */
@@ -60,14 +64,16 @@ main{max-width:640px;margin:0 auto;padding:calc(14px + var(--safe-top)) 16px cal
 .guests h2{color:#9a6400}
 .guests .roster-list li::before{background:linear-gradient(145deg,#fff2d6,#ffe6b3);color:#8a5a00;box-shadow:inset 0 0 0 1px rgba(224,160,40,.25)}
 
-/* teams */
+/* teams — זהה לתצוגת האדמין: קבוצה בצבע מלא, גבול צבעוני, שמות בצבע הקבוצה */
 .teams{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
-.team{border-radius:15px;overflow:hidden;min-width:0;box-shadow:0 4px 14px rgba(0,0,0,.08);animation:popIn .4s ease both}
-.team h3{margin:0;text-align:center;padding:12px 4px;font-size:16px;font-weight:800;color:#fff}
-.team.blue h3{background:var(--blue)}.team.red h3{background:var(--red)}.team.yellow h3{background:var(--yellow)}.team.orange h3{background:var(--orange)}.team.white h3{background:#8a97a8}
-.team .body{background:#fff}
-.team.blue .body{background:#eff6ff}.team.red .body{background:#fff1f1}.team.yellow .body{background:#fffbe9}.team.orange .body{background:#fff6ea}.team.white .body{background:#f7f9fb}
-.team .p{padding:10px 4px;text-align:center;color:#1b2b40;border-bottom:1px solid rgba(0,0,0,.055);font-size:14.5px;overflow-wrap:anywhere}
+.team{border:2px solid;border-radius:14px;overflow:hidden;min-width:0;box-shadow:0 4px 14px rgba(0,0,0,.08);animation:popIn .4s ease both}
+.team h3{margin:0;text-align:center;padding:12px 4px;font-size:16px;font-weight:800;border-bottom:2px solid currentColor}
+.team.blue{background:#e5f0ff;color:#144a98;border-color:#4389d8}
+.team.red{background:#ffe9e9;color:#a32232;border-color:#db5460}
+.team.yellow{background:#fff5cb;color:#775800;border-color:#e3b82b}
+.team.orange{background:#fff0da;color:#955000;border-color:#e69533}
+.team.white{background:#fff;color:#3c4b5c;border-color:#a6b2c2}
+.team .p{padding:10px 4px;text-align:center;color:inherit;border-bottom:1px solid rgba(160,160,160,.25);font-size:14.5px;font-weight:600;overflow-wrap:anywhere}
 .team .p:last-child{border-bottom:0}
 
 /* skeleton */
@@ -134,9 +140,14 @@ body.standalone .gear{display:none!important}
 
 <div class="countdown" id="countdown" style="display:none">
  <div class="pulse"></div>
- <div class="label">הגרלת כוחות אוטומטית בשעה</div>
- <div class="time" id="drawTime">--:--</div>
- <div class="sub" id="drawSub"></div>
+ <div class="label" id="drawLabel"></div>
+ <div class="timer" id="timer">
+  <div class="seg"><span class="num" id="tH">00</span><span class="cap">שעות</span></div>
+  <div class="colon">:</div>
+  <div class="seg"><span class="num" id="tM">00</span><span class="cap">דקות</span></div>
+  <div class="colon">:</div>
+  <div class="seg"><span class="num" id="tS">00</span><span class="cap">שניות</span></div>
+ </div>
 </div>
 
 <div id="content"><div class="skel"><div class="bar sm"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
@@ -169,8 +180,23 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 /* חותמת זמן נוכחית בירושלים כמחרוזת "YYYY-MM-DDTHH:MM" (ניתנת להשוואה לקסיקוגרפית) */
 function jerusalemNowStamp(){try{const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date());const g=t=>p.find(x=>x.type===t).value;let h=g('hour');if(h==='24')h='00';return `${g('year')}-${g('month')}-${g('day')}T${h}:${g('minute')}`}catch(e){const d=new Date(),z=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`}}
 function fmtDate(iso){if(!iso)return'';const d=new Date(iso+'T00:00:00');if(isNaN(d))return esc(iso);return d.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}
+/* ממיר תאריך+שעה לפי שעון קיר בירושלים ל-epoch (ms) — ללא תלות באזור הזמן של המכשיר */
+function jerusalemEpoch(dateISO,hhmm){const [Y,Mo,D]=dateISO.split('-').map(Number);const [h,mi]=hhmm.split(':').map(Number);
+ // ננחש epoch, נמדוד את ההיסט של ירושלים באותו רגע, ונתקן
+ let guess=Date.UTC(Y,Mo-1,D,h,mi,0);
+ for(let i=0;i<2;i++){const p=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(new Date(guess));const g=t=>+p.find(x=>x.type===t).value;let gh=g('hour');if(gh===24)gh=0;const asUTC=Date.UTC(g('year'),g('month')-1,g('day'),gh,g('minute'),g('second'));const offset=asUTC-guess;guess=Date.UTC(Y,Mo-1,D,h,mi,0)-offset}
+ return guess}
 
-let pub=null,lastSig='',firstLoad=true;
+let pub=null,lastSig='',firstLoad=true,countdownTarget=null;
+function tickTimer(){
+ if(countdownTarget==null){$('tH').textContent='--';$('tM').textContent='--';$('tS').textContent='--';return}
+ let diff=Math.max(0,Math.floor((countdownTarget-Date.now())/1000));
+ const h=Math.floor(diff/3600),m=Math.floor(diff%3600/60),s=diff%60;
+ const z=n=>String(n).padStart(2,'0');
+ $('tH').textContent=z(h);$('tM').textContent=z(m);$('tS').textContent=z(s);
+ if(diff<=0){countdownTarget=null;render()} // הגיע הזמן — רענון מיידי שיציג כוחות
+}
+setInterval(()=>{if(countdownTarget!=null&&$('countdown').style.display!=='none')tickTimer()},1000);
 function render(){
  if(!pub){$('content').innerHTML='<div class="empty"><span class="big">⚽</span>עדיין לא פורסם מידע למחזור.<br>חזרו בקרוב!</div>';$('countdown').style.display='none';$('round').textContent='';$('date').textContent='';$('title').textContent='כוחות';return}
  $('title').textContent=pub.title||'כוחות';
@@ -183,11 +209,15 @@ function render(){
  else if(drawTime)timeReached=jerusalemNowStamp().slice(11)>=drawTime;
  else timeReached=true;
  const showTeams=!!(pub.published&&pub.teams&&pub.teams.length&&timeReached);
- if(pub.drawTime&&!showTeams){$('countdown').style.display='';$('drawTime').textContent=pub.drawTime;$('drawSub').textContent=pub.published?(pub.matchDate?'הכוחות יוצגו אוטומטית ביום המשחק בשעה זו':'הכוחות יוצגו אוטומטית בשעה זו'):'ממתינים לפרסום הכוחות'}
- else $('countdown').style.display='none';
+ if(drawTime&&!showTeams){
+  $('countdown').style.display='';
+  $('drawLabel').innerHTML=(pub.matchDate?'הגרלת כוחות אוטומטית ביום המשחק בשעה ':'הגרלת כוחות אוטומטית בשעה ')+'<b>'+esc(drawTime)+'</b>';
+  countdownTarget=pub.matchDate?jerusalemEpoch(pub.matchDate,drawTime):null;
+  tickTimer();
+ } else {$('countdown').style.display='none';countdownTarget=null}
 
  if(showTeams){
-  $('content').innerHTML='<div class="card"><h2><span class="ico">⚽</span>הכוחות<span class="ico">⚽</span></h2><div class="teams">'+pub.teams.map((g,k)=>`<div class="team ${(pub.colors||COLORS)[k]||COLORS[k]}" style="animation-delay:${k*0.07}s"><h3>${esc(LABELS[k])}</h3><div class="body">${g.map(n=>`<div class="p">${esc(n)}</div>`).join('')}</div></div>`).join('')+'</div></div>';
+  $('content').innerHTML='<div class="card"><h2><span class="ico">⚽</span>הכוחות<span class="ico">⚽</span></h2><div class="teams">'+pub.teams.map((g,k)=>`<div class="team ${(pub.colors||COLORS)[k]||COLORS[k]}" style="animation-delay:${k*0.07}s"><h3>${esc(LABELS[k])}</h3>${g.map(n=>`<div class="p">${esc(n)}</div>`).join('')}</div>`).join('')+'</div></div>';
  }else{
   const lineup=pub.lineup||[],guests=pub.guests||[];
   let html='<div class="card"><h2><span class="ico">📋</span>הסגל למחזור</h2>';
