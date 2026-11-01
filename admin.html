@@ -142,6 +142,16 @@ textarea{width:100%;min-height:90px;resize:vertical}
 .jrow.is-pick{background:#e3f6ea}
 .final-jersey{text-align:center;font-size:18px;font-weight:700;color:#155b9e;background:#eef6ff;border:1px solid #bcd7f5;border-radius:10px;padding:11px;margin-top:10px}
 .final-jersey:empty{display:none}
+.jpast{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.jpast-col{border:1px solid #d8e1ed;border-radius:10px;overflow:hidden;min-width:0}
+.jpast-col h3{margin:0;text-align:center;background:#eaf1fa;color:#2a4a6e;padding:9px 4px;font-size:16px;border-bottom:1px solid #d8e1ed}
+.jp-row{display:flex;align-items:center;gap:6px;padding:7px 6px;border-bottom:1px solid #e5ebf3;font-size:14px}
+.jp-row:last-child{border-bottom:0}
+.jp-row:nth-child(even){background:#f7fafd}
+.jp-date{flex:0 0 auto;color:#64748b;font-variant-numeric:tabular-nums;font-size:13px}
+.jp-name{flex:1 1 auto;font-weight:600;overflow-wrap:anywhere;min-width:0}
+button.jp-del{flex:0 0 auto;margin:0;padding:2px 7px;min-height:0;font-size:12px;background:transparent;color:#b73343;border:1px solid #f1c4ca}
+.jp-empty{padding:10px;text-align:center}
 
 /* ===== פרסום / קודמים / היסטוריה ===== */
 #finalPanel{max-width:650px;margin:0 auto}
@@ -154,7 +164,6 @@ textarea{width:100%;min-height:90px;resize:vertical}
 .previous-team-label{text-align:center;font-size:12px;font-weight:bold;padding:5px 2px;border-bottom:1px solid #a0a0a055}
 .history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;flex-wrap:wrap}
 .hist-tools{display:flex;align-items:center;gap:6px}
-.hist-date{padding:5px 7px;font-size:13px}
 .hist-jersey{margin-top:6px;font-size:13px;color:#334155}
 .hist-jersey b{color:#155b9e}
 
@@ -379,6 +388,14 @@ dialog::backdrop{background:#0007}
  <div id="jerseyList"></div>
 </details>
 
+<details id="jerseyPast"><summary>גופיות קודמות 🎽</summary>
+ <p class="muted">10 הלוקחים האחרונים לכל יום, מהחדש לישן. מתווסף אוטומטית בכל "מחזור חדש" לפי תאריך המשחק.</p>
+ <div class="jpast">
+  <div class="jpast-col"><h3>חמישי</h3><div id="jpastThu"></div></div>
+  <div class="jpast-col"><h3>מוצ״ש</h3><div id="jpastSat"></div></div>
+ </div>
+</details>
+
 <details id="previous"><summary>כוחות קודמים</summary><div id="previousList"></div></details>
 
 <details id="history"><summary>היסטוריית מחזורים <span class="muted" id="historyCount"></span></summary>
@@ -392,12 +409,12 @@ dialog::backdrop{background:#0007}
  <div id="historyList"></div>
 </details>
 
-<details id="together"><summary>משחק יחד (למחזור זה)</summary>
+<details id="together"><summary>לא בשימוש</summary>
  <p class="muted">הבחירות חלות על המחזור הנוכחי בלבד, אינן נשמרות במאגר, והאלגוריתם ישתדל לכבד אותן אך יעדיף איזון.</p>
  <div id="togetherList"></div>
 </details>
 
-<p class="muted">הנתונים נשמרים מקומית בדפדפן זה בלבד. מומלץ לשמור עותק גיבוי (JSON) של השחקנים ושל היסטוריית המחזורים.</p><p class="muted" style="text-align:center;font-size:12px;opacity:.7">גרסה 51</p></main>
+<p class="muted">הנתונים נשמרים מקומית בדפדפן זה בלבד. מומלץ לשמור עותק גיבוי (JSON) של השחקנים ושל היסטוריית המחזורים.</p><p class="muted" style="text-align:center;font-size:12px;opacity:.7">גרסה 52</p></main>
 
 <dialog id="ratingReviewDialog"><h3>בדיקת שינויי דירוג</h3><p class="muted">השחקנים הבאים כבר קיימים במאגר עם דירוג שונה. בחר אילו לעדכן:</p><div id="ratingReviewList"></div><div class="row"><button id="ratingUpdateAll">עדכן לכולם</button><button id="ratingApplySelected" class="secondary">עדכן מסומנים</button><button id="ratingSkipAll" class="secondary">דלג</button></div></dialog>
 <dialog id="colorDialog"><h3>בחר צבע לקבוצה</h3><div id="colorChoices" class="row"></div><button id="colorCancel" class="secondary">ביטול</button></dialog>
@@ -409,13 +426,15 @@ dialog::backdrop{background:#0007}
 <dialog id="rateDialog"><h3 id="rateTitle">עריכת דירוג</h3><label>דירוג כללי (0–5) <input id="rateRating" type="number" min="0" max="5" step="0.1"></label><label style="display:block;margin-top:8px">דירוג כושר (1 נמוך · 3 גבוה) <select id="rateFitness"><option value="low">1</option><option value="mid">2</option><option value="high">3</option></select></label><div class="row" style="margin-top:12px"><button id="rateSave">שמור</button><button id="rateCancel" class="secondary">ביטול</button></div></dialog>
 <script>
 (()=>{'use strict';
-const $=id=>document.getElementById(id),KEY='team-balancer-v1',STATE='team-balancer-state-v7',HKEY='rounds-history-v1',ROUND='team-balancer-round-v2',JTALLY='jersey-tally-v1',JEXCL='jersey-excluded-v1';
+const $=id=>document.getElementById(id),KEY='team-balancer-v1',STATE='team-balancer-state-v7',HKEY='rounds-history-v1',ROUND='team-balancer-round-v2',JTALLY='jersey-tally-v1',JEXCL='jersey-excluded-v1',JLOG='jersey-log-v1';
 /* פרמטרי אלגוריתם */
 const FIT_VALUES=['low','mid','high'],FIT_LABEL={low:'חלש',mid:'בינוני',high:'גבוה'},FIT_NUM={low:1,mid:2,high:3},NUM_FIT={1:'low',2:'mid',3:'high'};
 const W_BALANCE=20,W_SPREAD=0.3,W_FITNESS=2.2,LINK_PENALTY=2;
 let duplicateItems=[],savedTeams=[],promoteId=null,colorTarget=0,teamColors=["blue","red","yellow"],players=[],selected=[],subs=[],pickHistory=[],teams=null,history=[],first=null,editing=false,queue=[],pending=[],pendingReplace=false,timer,uncertain=new Set(),pendingUncertain=new Set(),currentQuestion=false,currentSub=false,pendingSub=new Set(),linkWith={},linkWithout={},roundHistory=[],roundNumber=1,paid=new Set();
 /* גופיות: jerseyTally = מפה {שם_מנורמל: {name, count}}; jerseyExcluded = Set של id שחקנים; jerseyPick = id הלוקח למחזור */
 let jerseyTally={},jerseyExcluded=new Set(),jerseyPick=null,jerseyPickName='';
+/* jerseyLog = יומן לקיחות גופיות לפי מחזור: [{id,date:'YYYY-MM-DD',round,name}] — החדש ראשון */
+let jerseyLog=[];
 let cfg={title:"מגרש מס' 2",subtitle:'',drawTime:'20:35',matchDate:'',published:true,forceNow:false,payBit:'https://www.bitpay.co.il/app/me/F178663C-BEC1-464B-A101-BAB2F574DF02D245',payBox:'',payAmount:23};const CFGKEY='team-balancer-cfg-v1';
 const id=()=>typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
 /* חותמת זמן נוכחית בירושלים "YYYY-MM-DDTHH:MM" להשוואת שעת ההגרלה */
@@ -464,7 +483,10 @@ async function cloudInit(){if(location.protocol==='file:'){cloudStatus('מצב �
 function save(){try{localStorage.setItem(KEY,JSON.stringify(players));localStorage.setItem(CFGKEY,JSON.stringify(cfg));sessionStorage.setItem(STATE,JSON.stringify({target:+$('target').value}));persistRound()}catch(e){toast('לא ניתן לשמור בדפדפן זה')}scheduleCloudSave()}
 function persistRound(){try{localStorage.setItem(ROUND,JSON.stringify({roundNumber,target:+$('target').value,selected,subs,uncertain:[...uncertain],paid:[...paid],linkWith,linkWithout,teamColors:[...teamColors],teams,finalShown:$('finalPanel').style.display!=='none',jerseyPick,jerseyPickName}))}catch(e){}}
 function load(){try{const a=JSON.parse(localStorage.getItem(KEY)||'[]');players=a.filter(p=>p&&typeof p.name==='string'&&Number.isFinite(+p.rating)).map(p=>({id:String(p.id||id()),name:p.name.trim(),rating:+p.rating,fitness:normFit(p.fitness)}));const s=JSON.parse(sessionStorage.getItem(STATE)||'{}');try{savedTeams=JSON.parse(localStorage.getItem('saved-forces-v1')||'[]').slice(0,2)}catch(e){savedTeams=[]}try{roundHistory=JSON.parse(localStorage.getItem(HKEY)||'[]');if(!Array.isArray(roundHistory))roundHistory=[]}catch(e){roundHistory=[]}
+ /* ניקוי כפילויות ישנות: אותו מספר מחזור נשמר פעמיים — נשארת הרשומה החדשה (הראשונה ברשימה) */
+ {const seen=new Set(),before=roundHistory.length;roundHistory=roundHistory.filter(r=>{if(!r||r.round==null)return true;if(seen.has(r.round))return false;seen.add(r.round);return true});if(roundHistory.length!==before)try{localStorage.setItem(HKEY,JSON.stringify(roundHistory))}catch(e){}}
  try{const jt=JSON.parse(localStorage.getItem(JTALLY)||'{}');jerseyTally=jt&&typeof jt==='object'?jt:{}}catch(e){jerseyTally={}}
+ try{const jl=JSON.parse(localStorage.getItem(JLOG)||'null');if(Array.isArray(jl))jerseyLog=jl;else{/* הרצה ראשונה: ייבוא לוקחים שכבר נשמרו בהיסטוריית המחזורים */jerseyLog=roundHistory.filter(r=>r&&r.jersey).map(r=>({id:id(),date:entryISO(r),round:r.round,name:r.jersey}));localStorage.setItem(JLOG,JSON.stringify(jerseyLog))}}catch(e){jerseyLog=[]}
  try{const je=JSON.parse(localStorage.getItem(JEXCL)||'[]');jerseyExcluded=new Set(Array.isArray(je)?je:[])}catch(e){jerseyExcluded=new Set()}
  try{const c=JSON.parse(localStorage.getItem(CFGKEY)||'null');if(c&&typeof c==='object')cfg={...cfg,...c}}catch(e){}
  selected=[];subs=[];uncertain.clear();paid.clear();linkWith={};linkWithout={};teams=null;roundNumber=1;jerseyPick=null;jerseyPickName='';
@@ -484,7 +506,7 @@ function render(){pruneLinks();$('roundLabel').textContent=cfg.title||"מגרש 
  $('selectedList').innerHTML=byRating(selected).map((i,n)=>{const p=player(i);return p?`<div class="roster-row ${uncertain.has(i)?'roster-question':''}">${payBox(i)}<span class="roster-num">${n+1}.</span><span class="roster-name">${esc(p.name)}</span><span class="roster-rating">${p.rating} <span class="muted" title="דירוג כושר">💪${FIT_NUM[p.fitness]}</span></span><span class="acts">${uncertain.has(i)?`<button class="small roster-confirm" data-confirm-player="${esc(i)}" title="אשר שחקן">✓</button>`:''}<button class="small secondary" data-rate-player="${esc(i)}">דירוג</button><button class="small danger" data-unselect="${esc(i)}">הסר</button></span></div>`:''}).join('')+Array.from({length:Math.max(0,(+$('target').value||15)-selected.length)},(_,n)=>`<div class="roster-row"><span class="pay-empty"></span><span class="roster-num">${selected.length+n+1}.</span><span class="roster-name muted">מקום פנוי</span><span class="roster-rating"></span><span class="acts"><button class="small secondary" data-addslot="1">הוסף</button></span></div>`).join('');
  $('subList').innerHTML=byRating(subs).map((i,n)=>{const p=player(i);return p?`<div class="roster-row ${uncertain.has(i)?'roster-question':''}"><span class="roster-num">${n+1}.</span><span class="roster-name">${esc(p.name)}</span><span class="roster-rating">${p.rating} <span class="muted" title="דירוג כושר">💪${FIT_NUM[p.fitness]}</span></span><span class="acts">${uncertain.has(i)?`<button class="small roster-confirm" data-confirm-player="${esc(i)}" title="אשר שחקן">✓</button>`:''}<button class="small secondary" data-rate-player="${esc(i)}">דירוג</button><button class="small secondary" data-promote="${esc(i)}">להרכב</button><button class="small danger" data-remove-sub="${esc(i)}">הסר</button></span></div>`:''}).join('')||'<p class="muted">אין מחליפים</p>';
  const payCount=selected.filter(i=>paid.has(i)).length,payTotal=selected.length;const pc=$('payCount');if(pc)pc.textContent=payTotal?`שילמו ${payCount}/${payTotal}`:'';
- renderTogether();renderTeams();renderPrevious();renderHistory();renderJerseys();save()}
+ renderTogether();renderTeams();renderPrevious();renderHistory();renderJerseys();renderJerseyPast();save()}
 
 function renderTogether(){const box=$('togetherList');if(!box)return;const ids=[...selected,...subs];if(ids.length<2){box.innerHTML='<p class="muted">הוסף לפחות שני שחקנים לסגל כדי להגדיר העדפות.</p>';return}const opts=(self,cur,ph)=>`<option value="">${ph}</option>`+ids.filter(o=>o!==self).map(o=>`<option value="${esc(o)}" ${o===cur?'selected':''}>${esc(player(o)?.name||'')}</option>`).join('');box.innerHTML=`<div class="together-row together-head"><span>שחקן</span><span>לשחק עם</span><span>לא לשחק עם</span></div>`+ids.map(i=>{const p=player(i);return p?`<div class="together-row"><span class="together-name">${esc(p.name)}</span><select data-with="${esc(i)}" title="לשחק עם">${opts(i,linkWith[i]||'','✓ לשחק עם…')}</select><select data-without="${esc(i)}" title="לא לשחק עם">${opts(i,linkWithout[i]||'','✗ לא עם…')}</select></div>`:''}).join('')}
 
@@ -521,11 +543,18 @@ function renderPrevious(){const box=$('previousList');if(!box)return;box.innerHT
 function fmtDay(iso){if(!iso)return'';const d=new Date(iso+'T00:00:00');if(isNaN(d))return esc(iso);return d.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
 /* תאריך בפורמט קלט (YYYY-MM-DD) מתוך entry — תאריך משחק אם קיים, אחרת תאריך השמירה */
 function entryISO(v){if(v.dateISO)return v.dateISO;const d=new Date(v.date);if(!isNaN(d)){const z=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`}return''}
-function renderHistory(){const box=$('historyList');if(!box)return;box.innerHTML=roundHistory.length?roundHistory.map(v=>{const iso=entryISO(v);return `<div class="hint previous-entry"><div class="history-head"><b>${v.round?'מחזור '+esc(v.round)+' · ':''}${esc(fmtDay(iso))}</b><span class="hist-tools"><input type="date" class="hist-date" data-hist-date="${esc(v.id)}" value="${esc(iso)}" title="בחר תאריך"><button class="small danger" data-remove-round="${esc(v.id)}">מחק</button></span></div><div class="previous-teams">${v.teams.map((g,j)=>`<div class="team ${(v.colors||colors)[j]||colors[j]}"><div class="previous-team-label">${labels[j]}</div>${g.map(pl=>`<div class="person">${esc(typeof pl==='string'?pl:pl.name)}</div>`).join('')}</div>`).join('')}</div>${v.jersey?`<div class="hist-jersey">🎽 גופיות: <b>${esc(v.jersey)}</b></div>`:''}</div>`}).join(''):'<p class="muted">אין מחזורים שמורים עדיין</p>'}
+function renderHistory(){const box=$('historyList');if(!box)return;box.innerHTML=roundHistory.length?roundHistory.map(v=>{const iso=entryISO(v);return `<div class="hint previous-entry"><div class="history-head"><b>${v.round?'מחזור '+esc(v.round)+' · ':''}${esc(fmtDay(iso))}</b><span class="hist-tools"><button class="small danger" data-remove-round="${esc(v.id)}">מחק</button></span></div><div class="previous-teams">${v.teams.map((g,j)=>`<div class="team ${(v.colors||colors)[j]||colors[j]}"><div class="previous-team-label">${labels[j]}</div>${g.map(pl=>`<div class="person">${esc(typeof pl==='string'?pl:pl.name)}</div>`).join('')}</div>`).join('')}</div>${v.jersey?`<div class="hist-jersey">🎽 גופיות: <b>${esc(v.jersey)}</b></div>`:''}</div>`}).join(''):'<p class="muted">אין מחזורים שמורים עדיין</p>'}
 function storeForces(index){if(!teams)return toast('יש ליצור כוחות תחילה');const entry={date:new Date().toLocaleString('he-IL'),groups:teams.map(g=>g.map(i=>player(i)?.name||'')),colors:[...teamColors]};if(index===undefined)savedTeams.push(entry);else savedTeams[index]=entry;savedTeams=savedTeams.slice(0,2);try{localStorage.setItem('saved-forces-v1',JSON.stringify(savedTeams))}catch(e){toast('לא ניתן לשמור בדפדפן')}renderPrevious();saveRound();toast('הכוחות נשמרו')}
 
 /* ===== גופיות ===== */
-function jerseySave(){try{localStorage.setItem(JTALLY,JSON.stringify(jerseyTally));localStorage.setItem(JEXCL,JSON.stringify([...jerseyExcluded]))}catch(e){}}
+function jerseySave(){try{localStorage.setItem(JTALLY,JSON.stringify(jerseyTally));localStorage.setItem(JEXCL,JSON.stringify([...jerseyExcluded]));localStorage.setItem(JLOG,JSON.stringify(jerseyLog))}catch(e){}}
+/* הוספה ליומן הגופיות (מחזור נוכחי, לפי תאריך המשחק); מחזור שכבר נרשם — מתעדכן ולא נכפל */
+function jerseyLogAdd(name){const z=n=>String(n).padStart(2,'0'),d=new Date(),date=cfg.matchDate||`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;jerseyLog=jerseyLog.filter(e=>e.round!==roundNumber);jerseyLog.unshift({id:id(),date,round:roundNumber,name});if(jerseyLog.length>200)jerseyLog.length=200}
+/* יום בשבוע מתוך תאריך: 4=חמישי, 6=מוצ״ש (שבת) */
+function jerseyDayOf(iso){const d=new Date(iso+'T00:00:00');return isNaN(d)?-1:d.getDay()}
+function renderJerseyPast(){const fmt=iso=>{const p=String(iso||'').split('-');return p.length===3?`${+p[2]}.${+p[1]}.${p[0].slice(2)}`:esc(iso)};
+ const col=(day,elId)=>{const box=$(elId);if(!box)return;const rows=jerseyLog.filter(e=>jerseyDayOf(e.date)===day).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,10);box.innerHTML=rows.length?rows.map(e=>`<div class="jp-row"><span class="jp-date">${fmt(e.date)}</span><span class="jp-name">${esc(e.name)}</span><button class="jp-del" data-jlog-del="${esc(e.id)}" title="מחק רשומה">✕</button></div>`).join(''):'<p class="muted jp-empty">אין רשומות</p>'};
+ col(4,'jpastThu');col(6,'jpastSat')}
 function jerseyCountFor(name){const k=norm(name);return jerseyTally[k]?jerseyTally[k].count:0}
 function jerseySetCount(name,count){const k=norm(name);if(!k)return;if(count>0)jerseyTally[k]={name,count};else delete jerseyTally[k]}
 /* שם הלוקח הנוכחי (ריק אם לא נבחר) — משמש לתצוגה, לתמונה, לפרסום ולהיסטוריה */
@@ -545,7 +574,10 @@ function renderJerseys(){
  const res=$('jerseyResult');
  if(res){if(jerseyPick&&player(jerseyPick)){res.innerHTML=`<div class="jersey-pick">🎽 לוקח/ת הגופיות: <b>${esc(player(jerseyPick).name)}</b> <select id="jerseyOverride" title="שנה ידנית"><option value="">— שנה ידנית —</option>${[...selected,...subs].filter(i=>player(i)).map(i=>`<option value="${esc(i)}" ${i===jerseyPick?'selected':''}>${esc(player(i).name)}</option>`).join('')}</select></div>`}else res.innerHTML='<p class="muted">טרם הוגרל לוקח גופיות למחזור זה.</p>'}
 }
-function saveRound(force){if(!teams)return;const z=n=>String(n).padStart(2,'0'),now=new Date();const todayISO=`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`;const entry={id:id(),round:roundNumber,date:now.toLocaleString('he-IL'),dateISO:cfg.matchDate||todayISO,target:+$('target').value,colors:[...teamColors],jersey:jerseyPick?(player(jerseyPick)?.name||jerseyPickName||''):'',teams:teams.map(g=>g.map(i=>({name:player(i)?.name||'',rating:player(i)?.rating||0,fitness:player(i)?.fitness||'mid'})))};const sig=JSON.stringify(entry.teams);const last=roundHistory[0];if(!force&&last&&JSON.stringify(last.teams)===sig)return;roundHistory.unshift(entry);if(roundHistory.length>50)roundHistory.length=50;try{localStorage.setItem(HKEY,JSON.stringify(roundHistory))}catch(e){}renderHistory();$('historyCount').textContent=`(${roundHistory.length})`}
+function saveRound(force){if(!teams)return;const z=n=>String(n).padStart(2,'0'),now=new Date();const todayISO=`${now.getFullYear()}-${z(now.getMonth()+1)}-${z(now.getDate())}`;const entry={id:id(),round:roundNumber,date:now.toLocaleString('he-IL'),dateISO:cfg.matchDate||todayISO,target:+$('target').value,colors:[...teamColors],jersey:jerseyPick?(player(jerseyPick)?.name||jerseyPickName||''):'',teams:teams.map(g=>g.map(i=>({name:player(i)?.name||'',rating:player(i)?.rating||0,fitness:player(i)?.fitness||'mid'})))};/* כל מחזור נשמר פעם אחת בלבד: שמירה חוזרת של אותו מספר מחזור מעדכנת את הרשומה הקיימת */
+ const existing=roundHistory.findIndex(r=>r.round===roundNumber);
+ if(existing>=0){entry.id=roundHistory[existing].id;roundHistory[existing]=entry}else roundHistory.unshift(entry);
+ if(roundHistory.length>50)roundHistory.length=50;try{localStorage.setItem(HKEY,JSON.stringify(roundHistory))}catch(e){}renderHistory();$('historyCount').textContent=`(${roundHistory.length})`}
 
 function sum(t){return t.reduce((s,i)=>s+(player(i)?.rating||0),0)}
 function score(t){const means=t.map(a=>a.length?sum(a)/a.length:0),avg=means.reduce((a,b)=>a+b,0)/3;let c=means.reduce((s,x)=>s+(x-avg)**2,0)*W_BALANCE;const overall=selected.map(i=>player(i)?.rating||0).sort((a,b)=>b-a);const cut1=overall[Math.floor(overall.length/3)-1]??5,cut2=overall[Math.floor(overall.length*2/3)-1]??0;for(const threshold of [cut1,cut2]){const counts=t.map(a=>a.filter(i=>(player(i)?.rating||0)>=threshold).length);c+=counts.reduce((s,x)=>s+(x-counts.reduce((a,b)=>a+b,0)/3)**2,0)*W_SPREAD}
@@ -633,7 +665,7 @@ $('promoteCancel').onclick=()=>$('promoteDialog').close();$('promoteChoices').on
 $('shareRosterText').onclick=async()=>{if(!selected.length&&!subs.length)return toast('הסגל ריק');const byR=ids=>[...ids].sort((a,b)=>(player(b)?.rating||0)-(player(a)?.rating||0)||(player(a)?.name||'').localeCompare(player(b)?.name||'','he'));const sections=[['הרכב',byR(selected)]];if(subs.length)sections.push(['מחליפים',byR(subs)]);const content='*⚽ סגל למשחק הקרוב ⚽*\n\n'+sections.map(([title,ids])=>'*_'+title+':_*\n'+(ids.length?ids.map((i,n)=>`${n+1}. ${player(i)?.name||''}${uncertain.has(i)?' *_(?)_*':''}`).join('\n'):'—')).join('\n\n');if(navigator.share){try{await navigator.share({text:content,title:'סגל למשחק הקרוב'});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(content);window.open('https://wa.me/?text='+encodeURIComponent(content),'_blank','noopener');toast('הסגל הועתק — בחר קבוצה בוואטסאפ')}catch(e){const box=document.createElement('textarea');box.value=content;document.body.append(box);box.select();document.execCommand('copy');box.remove();toast('הסגל הועתק')}};
 $('newRound').onclick=()=>{if(!confirm('להתחיל מחזור חדש? כל בחירות המחזור, המחליפים, העדפות "משחק יחד" והקבוצות יימחקו. מאגר השחקנים והיסטוריית המחזורים יישמרו.'))return;if(teams&&confirm('לשמור את המחזור הנוכחי להיסטוריית המחזורים לפני האיפוס?'))saveRound(true);
  /* הגופיות שנבחרו למחזור הנוכחי נרשמות במונה הלקיחות לקראת ההגרלה הבאה */
- if(jerseyPick){const nm=player(jerseyPick)?.name||jerseyPickName;if(nm){const k=norm(nm);if(jerseyTally[k])jerseyTally[k].count+=1;else jerseyTally[k]={name:nm,count:1};jerseySave()}}
+ if(jerseyPick){const nm=player(jerseyPick)?.name||jerseyPickName;if(nm){const k=norm(nm);if(jerseyTally[k])jerseyTally[k].count+=1;else jerseyTally[k]={name:nm,count:1};jerseyLogAdd(nm);jerseySave()}}
  jerseyPick=null;jerseyPickName='';
  checkpoint();selected=[];subs=[];uncertain.clear();paid.clear();queue=[];pending=[];linkWith={};linkWithout={};teamColors.splice(0,3,'blue','red','yellow');resetTeams();roundNumber++;cfg.published=true;cfg.forceNow=false;autoDrawDone=false;syncCfgInputs();$('names').value='';$('target').value=15;$('finalPanel').style.display='none';render();toast('מחזור מספר '+roundNumber+' נפתח')};
 $('similarPlayers').onclick=e=>{const b=e.target.closest('[data-existing]');if(!b)return;const chosen=player(b.dataset.existing);if(chosen&&!pending.includes(chosen.id))pending.push(chosen.id);if(chosen&&currentQuestion)pendingUncertain.add(chosen.id);if(chosen&&currentSub)pendingSub.add(chosen.id);$('addMissingDialog').close();nextMatch()};
@@ -677,10 +709,10 @@ $('importHistory').onclick=()=>$('historyFile').click();
 $('historyFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());const incoming=Array.isArray(data)?data:(data.history||[]);if(!Array.isArray(incoming))throw Error('מבנה לא תקין');const map=new Map();[...incoming,...roundHistory].forEach(r=>{if(r&&r.teams){const rid=r.id||id();if(!map.has(rid))map.set(rid,{...r,id:rid})}});roundHistory=[...map.values()].slice(0,50);localStorage.setItem(HKEY,JSON.stringify(roundHistory));renderHistory();$('historyCount').textContent=`(${roundHistory.length})`;toast(`יובאו ${incoming.length} מחזורים`)}catch(err){toast('שגיאה בייבוא: '+err.message)}e.target.value=''};
 $('clearHistory').onclick=()=>{if(!roundHistory.length)return toast('ההיסטוריה כבר ריקה');if(!confirm('למחוק את כל היסטוריית המחזורים?'))return;roundHistory=[];localStorage.setItem(HKEY,JSON.stringify(roundHistory));renderHistory();$('historyCount').textContent='(0)';toast('ההיסטוריה נמחקה')};
 $('historyList').onclick=e=>{const b=e.target.closest('[data-remove-round]');if(!b)return;roundHistory=roundHistory.filter(r=>r.id!==b.dataset.removeRound);localStorage.setItem(HKEY,JSON.stringify(roundHistory));renderHistory();$('historyCount').textContent=`(${roundHistory.length})`};
-$('historyList').onchange=e=>{const el=e.target.closest('[data-hist-date]');if(!el)return;const r=roundHistory.find(x=>x.id===el.dataset.histDate);if(r){r.dateISO=el.value;localStorage.setItem(HKEY,JSON.stringify(roundHistory));renderHistory();toast('התאריך עודכן')}};
 /* ===== גופיות — מאזינים ===== */
 $('jerseyDraw').onclick=jerseyDraw;
 $('jerseyClearPick').onclick=()=>{jerseyPick=null;jerseyPickName='';render();save();toast('הבחירה נוקתה')};
+$('jerseyPast').onclick=e=>{const b=e.target.closest('[data-jlog-del]');if(!b)return;const en=jerseyLog.find(x=>x.id===b.dataset.jlogDel);if(!en||!confirm(`למחוק את ${en.name} מגופיות קודמות? (המונה של השחקן לא משתנה)`))return;jerseyLog=jerseyLog.filter(x=>x!==en);jerseySave();renderJerseyPast()};
 $('jerseyEditToggle').onclick=()=>{jerseyEditing=!jerseyEditing;renderJerseys()};
 $('jerseyList').onchange=e=>{const cb=e.target.closest('input[data-jersey-exclude]');if(cb){const i=cb.dataset.jerseyExclude;if(cb.checked)jerseyExcluded.add(i);else jerseyExcluded.delete(i);jerseySave();renderJerseys();return}
  const inp=e.target.closest('input[data-jersey-count]');if(inp){const p=player(inp.dataset.jerseyCount);if(!p)return;const v=parseInt(inp.value,10);if(!Number.isFinite(v)||v<0)return toast('מספר לא תקין');jerseySetCount(p.name,v);jerseySave();toast('המונה עודכן')}};
