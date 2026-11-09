@@ -146,6 +146,8 @@ textarea{width:100%;min-height:90px;resize:vertical}
 .field-toggle input{width:20px;height:20px;margin:1px 0 0}
 /* במצב הגרלה במגרש: מוסתרים שעת ההגרלה, "פרסם בשעת ההגרלה" וחלון "לא בשימוש" (משחק יחד — ממשיך לפעול) */
 body.at-field .timed-only,body.at-field #together{display:none!important}
+/* מכשיר בלי סיסמת סנכרון מאומתת — הטאב לא קיים מבחינתו */
+body.no-sync #together{display:none!important}
 body:not(.at-field) .field-only{display:none!important}
 .jpast{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .jpast-col{border:1px solid #d8e1ed;border-radius:10px;overflow:hidden;min-width:0}
@@ -293,7 +295,7 @@ dialog::backdrop{background:#0007}
  .person{font-size:11px}
  .team h3{font-size:12px}
 }
-</style></head><body><main><div style="display:flex;align-items:center;justify-content:center;gap:10px;position:relative"><h1 style="margin:12px">מחולל כוחות</h1><a id="toPublic" href="index.html" title="לדף הציבורי" aria-label="לדף הציבורי" style="position:absolute;left:0;font-size:24px;text-decoration:none">👁️</a></div><div id="roundLabel" style="text-align:center;font-size:19px;font-weight:bold;color:#155b9e;margin:-4px 0 10px"></div><div style="text-align:center"><button id="newRound" class="danger">מחזור חדש</button></div><div id="cloudStatus" style="text-align:center;font-size:13px;color:#64748b;margin:6px 0"></div><div id="toast" role="status" aria-live="polite"></div>
+</style></head><body class="no-sync"><main><div style="display:flex;align-items:center;justify-content:center;gap:10px;position:relative"><h1 style="margin:12px">מחולל כוחות</h1><a id="toPublic" href="index.html" title="לדף הציבורי" aria-label="לדף הציבורי" style="position:absolute;left:0;font-size:24px;text-decoration:none">👁️</a></div><div id="roundLabel" style="text-align:center;font-size:19px;font-weight:bold;color:#155b9e;margin:-4px 0 10px"></div><div style="text-align:center"><button id="newRound" class="danger">מחזור חדש</button></div><div id="cloudStatus" style="text-align:center;font-size:13px;color:#64748b;margin:6px 0"></div><div id="toast" role="status" aria-live="polite"></div>
 
 <details id="publicCfg"><summary>הגדרות הדף הציבורי</summary>
  <div class="row" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
@@ -418,11 +420,10 @@ dialog::backdrop{background:#0007}
 </details>
 
 <details id="together"><summary>לא בשימוש</summary>
- <p class="muted">הבחירות חלות על המחזור הנוכחי בלבד, אינן נשמרות במאגר, והאלגוריתם ישתדל לכבד אותן אך יעדיף איזון.</p>
  <div id="togetherList"></div>
 </details>
 
-<p class="muted">הנתונים נשמרים מקומית בדפדפן זה בלבד. מומלץ לשמור עותק גיבוי (JSON) של השחקנים ושל היסטוריית המחזורים.</p><p class="muted" style="text-align:center;font-size:12px;opacity:.7">גרסה 58</p></main>
+<p class="muted">הנתונים נשמרים מקומית בדפדפן זה בלבד. מומלץ לשמור עותק גיבוי (JSON) של השחקנים ושל היסטוריית המחזורים.</p><p class="muted" style="text-align:center;font-size:12px;opacity:.7">גרסה 59</p></main>
 
 <dialog id="ratingReviewDialog"><h3>בדיקת שינויי דירוג</h3><p class="muted">השחקנים הבאים כבר קיימים במאגר עם דירוג שונה. בחר אילו לעדכן:</p><div id="ratingReviewList"></div><div class="row"><button id="ratingUpdateAll">עדכן לכולם</button><button id="ratingApplySelected" class="secondary">עדכן מסומנים</button><button id="ratingSkipAll" class="secondary">דלג</button></div></dialog>
 <dialog id="colorDialog"><h3>בחר צבע לקבוצה</h3><div id="colorChoices" class="row"></div><button id="colorCancel" class="secondary">ביטול</button></dialog>
@@ -463,7 +464,9 @@ function toast(s){const e=$('toast');e.textContent=s;e.style.display='block';cle
 /* ===== סנכרון ענן (Netlify Functions + Blobs) ===== */
 const CLOUD_URL='/api/players',PWKEY='team-balancer-pw';
 let cloudPw=localStorage.getItem(PWKEY)||'',cloudReady=false,cloudTimer=null,lastCloudSig='';
-function cloudStatus(txt,cls){const el=$('cloudStatus');if(!el)return;el.textContent=txt;el.style.color=cls==='err'?'#b73343':cls==='ok'?'#19806b':'#64748b'}
+/* הטאב "לא בשימוש" מוצג רק במכשיר שהוזנה בו סיסמת סנכרון נכונה (נשמרת רק אחרי אימות בשרת). קבצי בדיקה מקומיים (file://) — מוצג */
+function syncGate(){document.body.classList.toggle('no-sync',!cloudPw&&location.protocol!=='file:')}
+function cloudStatus(txt,cls){syncGate();const el=$('cloudStatus');if(!el)return;el.textContent=txt;el.style.color=cls==='err'?'#b73343':cls==='ok'?'#19806b':'#64748b'}
 function buildPublish(){const names=ids=>ids.map(i=>player(i)?.name||'').filter(Boolean);
  const people=ids=>ids.map(i=>{const p=player(i);return p?{name:p.name,paid:paid.has(i)}:null}).filter(Boolean);
  const limit=+$('target').value||15;const byR=ids=>[...ids].sort((a,b)=>(player(b)?.rating||0)-(player(a)?.rating||0)||(player(a)?.name||'').localeCompare(player(b)?.name||'','he'));
@@ -524,7 +527,7 @@ function render(){pruneLinks();$('roundLabel').textContent=cfg.title||"מגרש 
  const payCount=selected.filter(i=>paid.has(i)).length,payTotal=selected.length;const pc=$('payCount');if(pc)pc.textContent=payTotal?`שילמו ${payCount}/${payTotal}`:'';
  renderTogether();renderTeams();renderPrevious();renderHistory();renderJerseys();renderJerseyPast();save()}
 
-function renderTogether(){const box=$('togetherList');if(!box)return;const ids=[...selected,...subs];if(ids.length<2){box.innerHTML='<p class="muted">הוסף לפחות שני שחקנים לסגל כדי להגדיר העדפות.</p>';return}const opts=(self,cur,ph)=>`<option value="">${ph}</option>`+ids.filter(o=>o!==self).map(o=>`<option value="${esc(o)}" ${o===cur?'selected':''}>${esc(player(o)?.name||'')}</option>`).join('');box.innerHTML=`<div class="together-row together-head"><span>שחקן</span><span>לשחק עם</span><span>לא לשחק עם</span></div>`+ids.map(i=>{const p=player(i);return p?`<div class="together-row"><span class="together-name">${esc(p.name)}</span><select data-with="${esc(i)}" title="לשחק עם">${opts(i,linkWith[i]||'','✓ לשחק עם…')}</select><select data-without="${esc(i)}" title="לא לשחק עם">${opts(i,linkWithout[i]||'','✗ לא עם…')}</select></div>`:''}).join('')}
+function renderTogether(){const box=$('togetherList');if(!box)return;const ids=[...selected,...subs];if(ids.length<2){box.innerHTML='';return}const opts=(self,cur,ph)=>`<option value="">${ph}</option>`+ids.filter(o=>o!==self).map(o=>`<option value="${esc(o)}" ${o===cur?'selected':''}>${esc(player(o)?.name||'')}</option>`).join('');box.innerHTML=`<div class="together-row together-head"><span>שחקן</span><span>לשחק עם</span><span>לא לשחק עם</span></div>`+ids.map(i=>{const p=player(i);return p?`<div class="together-row"><span class="together-name">${esc(p.name)}</span><select data-with="${esc(i)}" title="לשחק עם">${opts(i,linkWith[i]||'','✓ לשחק עם…')}</select><select data-without="${esc(i)}" title="לא לשחק עם">${opts(i,linkWithout[i]||'','✗ לא עם…')}</select></div>`:''}).join('')}
 
 let ratingChanges=[];
 function fitFromText(s){s=norm(s);if(!s)return undefined;if(/חלש|low|weak|נמוך/.test(s))return'low';if(/גבוה|high|strong|חזק/.test(s))return'high';if(/בינוני|mid|medium|average|normal/.test(s))return'mid';return undefined}
@@ -650,7 +653,7 @@ $('poolList').onchange=e=>{const el=e.target;if(el.dataset.fitness){const p=play
 $('poolList').onclick=e=>{const step=e.target.closest('button[data-step-rating]');if(step){const p=player(step.dataset.stepRating);if(!p)return;p.rating=Math.round(Math.max(0,Math.min(5,p.rating+Number(step.dataset.delta)*0.1))*10)/10;render();return}const b=e.target.closest('button[data-delete]');if(!b)return;const p=player(b.dataset.delete);if(!p)return;if(!confirm('למחוק את '+p.name+'?'))return;players=players.filter(x=>x.id!==p.id);selected=selected.filter(x=>x!==p.id);subs=subs.filter(x=>x!==p.id);resetTeams();render();toast('השחקן נמחק')};
 $('import').onclick=()=>{const {out,bad}=parseBulk($('bulk').value);if(!out.length)return toast('לא נמצאו שחקנים תקינים בהדבקה');importRows(out,bad)};
 $('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(/\.json$/i.test(f.name)){const data=JSON.parse(await f.text());const arr=Array.isArray(data)?data:data.players;if(!Array.isArray(arr))throw Error('מבנה JSON לא תקין');const rows=arr.filter(p=>p&&typeof p.name==='string'&&Number.isFinite(+p.rating)).map(p=>({name:p.name.trim(),rating:+p.rating,fitness:normFit(p.fitness)}));if(!rows.length)return toast('לא נמצאו שחקנים בקובץ');importRows(rows);e.target.value='';return}let text;if(/\.xlsx?$/i.test(f.name)){if(!window.XLSX){await new Promise((ok,fail)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=ok;s.onerror=fail;document.head.append(s)})}const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});text=XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]],{FS:'\t'})}else text=await f.text();const {out,bad}=parseBulk(text);if(!out.length)return toast('לא נמצאו שורות תקינות');importRows(out,bad)}catch(err){toast('שגיאה בקריאת הקובץ: '+err.message)}e.target.value=''};
-$('togetherList').onchange=e=>{const el=e.target,v=el.value;if(el.dataset.with!==undefined){const k=el.dataset.with;if(v)linkWith[k]=v;else delete linkWith[k]}else if(el.dataset.without!==undefined){const k=el.dataset.without;if(v)linkWithout[k]=v;else delete linkWithout[k]}toast('העדפת משחק יחד עודכנה (לחץ "צור קבוצות" להחלה)')};
+$('togetherList').onchange=e=>{const el=e.target,v=el.value;if(el.dataset.with!==undefined){const k=el.dataset.with;if(v)linkWith[k]=v;else delete linkWith[k]}else if(el.dataset.without!==undefined){const k=el.dataset.without;if(v)linkWithout[k]=v;else delete linkWithout[k]}toast('עודכן')};
 $('duplicateConfirm').onclick=()=>{const ids=[...$('duplicateExisting').querySelectorAll('input[data-duplicate]:checked')].map(x=>x.dataset.duplicate);pending.push(...ids.filter(i=>!pending.includes(i)));if(currentQuestion)ids.forEach(i=>pendingUncertain.add(i));if(currentSub)ids.forEach(i=>pendingSub.add(i));$('duplicateDialog').close();nextMatch()};$('duplicateSkip').onclick=()=>{$('duplicateDialog').close();nextMatch()};$('duplicateNew').onclick=()=>{const name=prompt('שם שחקן חדש:');if(name){$('duplicateDialog').close();openMissing(name)}};$('duplicateCancel').onclick=()=>{queue=[];duplicateItems=[];$('duplicateDialog').close();toast('הקליטה בוטלה')};
 $('promoteCancel').onclick=()=>$('promoteDialog').close();$('promoteChoices').onclick=e=>{const b=e.target.closest('[data-swap]');if(!b||!promoteId)return;const old=b.dataset.swap;if(!subs.includes(promoteId))return;checkpoint();if(selected.includes(old)){selected=selected.map(i=>i===old?promoteId:i);subs=subs.map(i=>i===promoteId?old:i)}else if(subs.includes(old)){subs=subs.map(i=>i===promoteId?old:i===old?promoteId:i)}else return;promoteId=null;$('promoteDialog').close();resetTeams();render();toast('השחקנים הוחלפו')};
 $('shareRosterText').onclick=async()=>{if(!selected.length&&!subs.length)return toast('הסגל ריק');const byR=ids=>[...ids].sort((a,b)=>(player(b)?.rating||0)-(player(a)?.rating||0)||(player(a)?.name||'').localeCompare(player(b)?.name||'','he'));const sections=[['הרכב',byR(selected)]];if(subs.length)sections.push(['מחליפים',byR(subs)]);const content='*⚽ סגל למשחק הקרוב ⚽*\n\n'+sections.map(([title,ids])=>'*_'+title+':_*\n'+(ids.length?ids.map((i,n)=>`${n+1}. ${player(i)?.name||''}${uncertain.has(i)?' *_(?)_*':''}`).join('\n'):'—')).join('\n\n');if(navigator.share){try{await navigator.share({text:content,title:'סגל למשחק הקרוב'});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(content);window.open('https://wa.me/?text='+encodeURIComponent(content),'_blank','noopener');toast('הסגל הועתק — בחר קבוצה בוואטסאפ')}catch(e){const box=document.createElement('textarea');box.value=content;document.body.append(box);box.select();document.execCommand('copy');box.remove();toast('הסגל הועתק')}};
@@ -724,5 +727,5 @@ function checkAutoDraw(){
  if(teams){save();toast('הכוחות הוגרלו אוטומטית ופורסמו')}
 }
 setInterval(checkAutoDraw,15000);
-load();syncCfgInputs();render();updateBackupStatus();cloudInit();setTimeout(checkAutoDraw,1500);})();
+syncGate();load();syncCfgInputs();render();updateBackupStatus();cloudInit();setTimeout(checkAutoDraw,1500);})();
 </script></body></html>
