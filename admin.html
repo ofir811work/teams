@@ -375,7 +375,7 @@ dialog::backdrop{background:#0007}
 </details>
 
 <details><summary>יצירת קבוצות</summary>
- <div class="row"><button id="generate">צור קבוצות</button><button id="reshuffle" class="secondary">הגרל שוב</button><button id="undo" class="secondary">בטל החלפה</button></div>
+ <div class="row"><button id="generate">צור קבוצות</button><button id="reshuffle" class="secondary">הגרל שוב</button><button id="resetTeams" class="danger">אפס הגרלה</button></div>
  <p class="muted">שלושת החזקים ושלושת החלשים מפוזרים אוטומטית אחד לכל קבוצה. להחלפה ידנית: לחץ על שחקן בקבוצה אחת ואז על שחקן בקבוצה אחרת.</p>
  <div id="teams" class="teams"></div>
  <div id="diff" class="balance"></div>
@@ -422,7 +422,7 @@ dialog::backdrop{background:#0007}
  <div id="togetherList"></div>
 </details>
 
-<p class="muted">הנתונים נשמרים מקומית בדפדפן זה בלבד. מומלץ לשמור עותק גיבוי (JSON) של השחקנים ושל היסטוריית המחזורים.</p><p class="muted" style="text-align:center;font-size:12px;opacity:.7">גרסה 56</p></main>
+<p class="muted">הנתונים נשמרים מקומית בדפדפן זה בלבד. מומלץ לשמור עותק גיבוי (JSON) של השחקנים ושל היסטוריית המחזורים.</p><p class="muted" style="text-align:center;font-size:12px;opacity:.7">גרסה 58</p></main>
 
 <dialog id="ratingReviewDialog"><h3>בדיקת שינויי דירוג</h3><p class="muted">השחקנים הבאים כבר קיימים במאגר עם דירוג שונה. בחר אילו לעדכן:</p><div id="ratingReviewList"></div><div class="row"><button id="ratingUpdateAll">עדכן לכולם</button><button id="ratingApplySelected" class="secondary">עדכן מסומנים</button><button id="ratingSkipAll" class="secondary">דלג</button></div></dialog>
 <dialog id="colorDialog"><h3>בחר צבע לקבוצה</h3><div id="colorChoices" class="row"></div><button id="colorCancel" class="secondary">ביטול</button></dialog>
@@ -472,9 +472,12 @@ function buildPublish(){const names=ids=>ids.map(i=>player(i)?.name||'').filter(
   jersey:jerseyPick?(player(jerseyPick)?.name||jerseyPickName||''):'',
   lineup:people(byR(selected.slice(0,limit))),guests:people(byR([...selected.slice(limit),...subs])),
   teams:cfg.published&&teams?teams.map(g=>names(g)):null}}
-function playersSig(){return JSON.stringify([players.map(p=>[p.id,p.name,p.rating,p.fitness]),buildPublish()])}
+/* גופיות (מונה, מוחרגים, גופיות קודמות) — נשמרות גם בענן, לא רק במכשיר */
+function jerseyCloud(){return{tally:jerseyTally,excluded:[...jerseyExcluded],log:jerseyLog}}
+function applyJerseys(j){if(!j||typeof j!=='object')return;jerseyTally=j.tally&&typeof j.tally==='object'?j.tally:{};jerseyExcluded=new Set(Array.isArray(j.excluded)?j.excluded:[]);jerseyLog=Array.isArray(j.log)?j.log:[];try{localStorage.setItem(JTALLY,JSON.stringify(jerseyTally));localStorage.setItem(JEXCL,JSON.stringify([...jerseyExcluded]));localStorage.setItem(JLOG,JSON.stringify(jerseyLog))}catch(e){}}
+function playersSig(){return JSON.stringify([players.map(p=>[p.id,p.name,p.rating,p.fitness]),buildPublish(),jerseyCloud()])}
 async function cloudGet(pw){const r=await fetch(CLOUD_URL,{headers:{'x-app-password':pw},cache:'no-store'});if(r.status===401)throw Object.assign(Error('סיסמה שגויה'),{code:401});if(!r.ok)throw Error('שגיאת שרת '+r.status);return r.json()}
-async function cloudPut(pw){const r=await fetch(CLOUD_URL,{method:'POST',headers:{'content-type':'application/json','x-app-password':pw},body:JSON.stringify({players,publish:buildPublish()})});if(!r.ok)throw Error('שמירה נכשלה '+r.status);return r.json()}
+async function cloudPut(pw){const r=await fetch(CLOUD_URL,{method:'POST',headers:{'content-type':'application/json','x-app-password':pw},body:JSON.stringify({players,publish:buildPublish(),jerseys:jerseyCloud()})});if(!r.ok)throw Error('שמירה נכשלה '+r.status);return r.json()}
 function scheduleCloudSave(){if(!cloudReady||!cloudPw)return;const sig=playersSig();if(sig===lastCloudSig)return;clearTimeout(cloudTimer);cloudStatus('שומר לענן…');cloudTimer=setTimeout(async()=>{try{await cloudPut(cloudPw);lastCloudSig=sig;cloudStatus('מסונכרן ✓','ok')}catch(e){cloudStatus('שמירה לענן נכשלה — יישמר מקומית','err')}},800)}
 async function cloudInit(){if(location.protocol==='file:'){cloudStatus('מצב מקומי — ללא סנכרון ענן');return}
  let pw=cloudPw;
@@ -482,7 +485,11 @@ async function cloudInit(){if(location.protocol==='file:'){cloudStatus('מצב �
   try{cloudStatus('טוען מהענן…');const data=await cloudGet(pw);cloudPw=pw;localStorage.setItem(PWKEY,pw);
    if(data&&data.publish&&typeof data.publish==='object'){const p=data.publish;cfg={...cfg,title:p.title||cfg.title,subtitle:p.subtitle!=null?p.subtitle:cfg.subtitle,drawTime:p.drawTime||cfg.drawTime,matchDate:p.matchDate||cfg.matchDate,published:!!p.published,forceNow:!!p.forceNow,payBit:p.payBit!=null?p.payBit:cfg.payBit,payBox:p.payBox!=null?p.payBox:cfg.payBox,payAmount:p.payAmount!=null?p.payAmount:cfg.payAmount,drawAtField:p.drawAtField!=null?!!p.drawAtField:cfg.drawAtField};syncCfgInputs()}
    const list=parsePlayers(data);
-   if(list.length){/* הענן הוא מקור האמת */cloudReady=false;applyPlayers(list);lastCloudSig=playersSig();cloudReady=true;cloudStatus('מסונכרן ✓','ok')}
+   if(data&&data.jerseys)applyJerseys(data.jerseys);
+   if(list.length){/* הענן הוא מקור האמת */cloudReady=false;applyPlayers(list);lastCloudSig=playersSig();cloudReady=true;
+    /* פעם ראשונה אחרי העדכון: בענן אין עדיין גופיות — מעלים את מה שיש במכשיר */
+    if(!(data&&data.jerseys)&&(Object.keys(jerseyTally).length||jerseyLog.length||jerseyExcluded.size)){lastCloudSig='';scheduleCloudSave()}
+    cloudStatus('מסונכרן ✓','ok')}
    else{/* ענן ריק — נדחוף את מה שיש מקומית (אם יש) */cloudReady=true;lastCloudSig=players.length?'':playersSig();if(players.length)scheduleCloudSave();cloudStatus('מסונכרן ✓','ok')}
    /* לוקח הגופיות — אם לא קיים מקומית (מכשיר אחר), משחזרים מהפרסום בענן */
    const cj=data&&data.publish&&data.publish.jersey;if(!jerseyPick&&cj){const jp=players.find(x=>norm(x.name)===norm(cj));if(jp){jerseyPick=jp.id;jerseyPickName=jp.name;render()}}
@@ -556,7 +563,7 @@ function renderHistory(){const box=$('historyList');if(!box)return;box.innerHTML
 function storeForces(index){if(!teams)return toast('יש ליצור כוחות תחילה');const entry={date:new Date().toLocaleString('he-IL'),groups:teams.map(g=>g.map(i=>player(i)?.name||'')),colors:[...teamColors]};if(index===undefined)savedTeams.push(entry);else savedTeams[index]=entry;savedTeams=savedTeams.slice(0,2);try{localStorage.setItem('saved-forces-v1',JSON.stringify(savedTeams))}catch(e){toast('לא ניתן לשמור בדפדפן')}renderPrevious();saveRound();toast('הכוחות נשמרו')}
 
 /* ===== גופיות ===== */
-function jerseySave(){try{localStorage.setItem(JTALLY,JSON.stringify(jerseyTally));localStorage.setItem(JEXCL,JSON.stringify([...jerseyExcluded]));localStorage.setItem(JLOG,JSON.stringify(jerseyLog))}catch(e){}}
+function jerseySave(){try{localStorage.setItem(JTALLY,JSON.stringify(jerseyTally));localStorage.setItem(JEXCL,JSON.stringify([...jerseyExcluded]));localStorage.setItem(JLOG,JSON.stringify(jerseyLog))}catch(e){}scheduleCloudSave()}
 /* הוספה ליומן הגופיות (מחזור נוכחי, לפי תאריך המשחק); מחזור שכבר נרשם — מתעדכן ולא נכפל */
 function jerseyLogAdd(name){const z=n=>String(n).padStart(2,'0'),d=new Date(),date=cfg.matchDate||`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;jerseyLog=jerseyLog.filter(e=>e.round!==roundNumber);jerseyLog.unshift({id:id(),date,round:roundNumber,name});if(jerseyLog.length>200)jerseyLog.length=200}
 /* יום בשבוע מתוך תאריך: 4=חמישי, 6=מוצ״ש (שבת) */
@@ -618,7 +625,7 @@ $('backupPlayers').onclick=()=>{dl(playersJSON(),BACKUP_NAME,'application/json')
 $('restorePlayers').onclick=()=>$('backupFile').click();
 $('backupFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());const list=parsePlayers(data);if(!confirm(`לטעון ${list.length} שחקנים ולהחליף את המאגר הנוכחי?`))return;applyPlayers(list);toast(`נטענו ${list.length} שחקנים`)}catch(err){toast('שגיאה בטעינה: '+err.message)}e.target.value=''};
 $('exportPoolJson').onclick=()=>{const d=new Date(),pad=n=>String(n).padStart(2,'0'),stamp=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;dl(playersJSON(),`players-${stamp}.json`,'application/json');toast('עותק גיבוי הורד')};
-$('cloudReload').onclick=async()=>{if(!cloudPw)return cloudInit();try{cloudStatus('טוען מהענן…');const data=await cloudGet(cloudPw);const list=parsePlayers(data);applyPlayers(list);lastCloudSig=playersSig();cloudStatus('מסונכרן ✓','ok');toast(`נטענו ${list.length} שחקנים מהענן`)}catch(e){cloudStatus('רענון נכשל','err');toast('שגיאה: '+e.message)}};
+$('cloudReload').onclick=async()=>{if(!cloudPw)return cloudInit();try{cloudStatus('טוען מהענן…');const data=await cloudGet(cloudPw);const list=parsePlayers(data);if(data&&data.jerseys)applyJerseys(data.jerseys);applyPlayers(list);lastCloudSig=playersSig();cloudStatus('מסונכרן ✓','ok');toast(`נטענו ${list.length} שחקנים מהענן`)}catch(e){cloudStatus('רענון נכשל','err');toast('שגיאה: '+e.message)}};
 $('cloudChangePw').onclick=()=>{cloudPw='';cloudReady=false;localStorage.removeItem(PWKEY);cloudInit()};
 function syncCfgInputs(){$('cfgTitle').value=cfg.title||'';$('cfgSubtitle').value=cfg.subtitle||'';$('cfgDate').value=cfg.matchDate||'';$('cfgDraw').value=cfg.drawTime||'20:35';$('cfgPayBit').value=cfg.payBit||'';$('cfgPayBox').value=cfg.payBox||'';$('cfgPayAmount').value=cfg.payAmount??23;$('cfgDrawAtField').checked=!!cfg.drawAtField;document.body.classList.toggle('at-field',!!cfg.drawAtField);$('publishState').textContent=cfg.published&&cfg.forceNow?'מצב: כוחות מפורסמים עכשיו':cfg.drawAtField?'מצב: הגרלה במגרש — מציג סגל עד "פרסם עכשיו"':cfg.published?'מצב: כוחות יפורסמו בשעת ההגרלה':'מצב: הפרסום נמחק (מציג סגל)'}
 $('cfgTitle').oninput=()=>{cfg.title=$('cfgTitle').value.replace(/^\s+|\s+$/g,'');const rl=$('roundLabel');if(rl)rl.textContent=cfg.title||"מגרש מס' 2";save()};
@@ -670,9 +677,11 @@ $('selectedList').onclick=e=>{const b=e.target.closest('button');if(!b)return;if
 $('subList').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.ratePlayer){openRate(b.dataset.ratePlayer);return}if(b.dataset.confirmPlayer){uncertain.delete(b.dataset.confirmPlayer);render();return}const sid=b.dataset.promote||b.dataset.removeSub;if(!sid)return;if(b.dataset.removeSub){checkpoint();subs=subs.filter(x=>x!==sid);uncertain.delete(sid);resetTeams();render();return}if(!selected.length){checkpoint();subs=subs.filter(x=>x!==sid);selected.push(sid);resetTeams();render();return}promoteId=sid;$('promoteChoices').innerHTML='<h4>הרכב</h4>'+selected.map((s,n)=>`<button class="secondary" data-swap="${esc(s)}">${n+1}. ${esc(player(s)?.name||'')}</button>`).join('')+'<h4>מחליפים</h4>'+subs.filter(s=>s!==sid).map((s,n)=>`<button class="secondary" data-swap="${esc(s)}">${n+1}. ${esc(player(s)?.name||'')}</button>`).join('');$('promoteDialog').showModal()};
 $('target').onchange=()=>{checkpoint();const limit=Math.max(3,+$('target').value||15);$('target').value=limit;const all=[...selected,...subs];selected=all.slice(0,limit);subs=all.slice(limit);resetTeams();render()};
 $('generate').onclick=()=>makeTeams(true);$('reshuffle').onclick=()=>makeTeams(false);
-$('colorCancel').onclick=()=>$('colorDialog').close();$('colorChoices').onclick=e=>{const b=e.target.closest('[data-color]');if(!b)return;teamColors[colorTarget]=b.dataset.color;$('colorDialog').close();renderTeams()};
+$('colorCancel').onclick=()=>$('colorDialog').close();$('colorChoices').onclick=e=>{const b=e.target.closest('[data-color]');if(!b)return;teamColors[colorTarget]=b.dataset.color;$('colorDialog').close();render();toast('הצבע עודכן')};
 $('teams').onclick=e=>{const colorButton=e.target.closest('[data-color-team]');if(colorButton){colorTarget=+colorButton.dataset.colorTeam;$('colorChoices').innerHTML=Object.entries(colorNames).map(([code,name])=>`<button class="secondary" data-color="${code}">${name}</button>`).join('');$('colorDialog').showModal();return}const el=e.target.closest('[data-player]');if(!el)return;const k=+el.dataset.team,i=el.dataset.player;if(!first){first={k,id:i};renderTeams();return}if(first.id===i){first=null;renderTeams();return}if(first.k===k){first={k,id:i};renderTeams();return}history.push(teams.map(t=>[...t]));const a=teams[first.k].indexOf(first.id),b=teams[k].indexOf(i);teams[first.k][a]=i;teams[k][b]=first.id;first=null;render();toast('ההחלפה בוצעה')};
-$('undo').onclick=()=>{if(!history.length)return toast('אין החלפה לביטול');teams=history.pop();first=null;render();toast('ההחלפה בוטלה')};
+/* איפוס הגרלה: מוחק את הכוחות ומחזיר למצב שלפני "צור קבוצות" — הסגל נשאר, הדף הציבורי חוזר להציג סגל.
+   forceNow מתאפס (כדי שהגרלה הבאה לא תתפרסם מיד מעצמה), וההגרלה האוטומטית לא תופעל מחדש בפתיחה הזו של הדף */
+$('resetTeams').onclick=()=>{if(!teams)return toast('אין הגרלה לאיפוס');if(!confirm('למחוק את הכוחות שהוגרלו ולחזור למצב שלפני "צור קבוצות"? הסגל נשמר.'))return;resetTeams();cfg.forceNow=false;autoDrawDone=true;syncCfgInputs();render();toast('ההגרלה אופסה — הסגל נשמר')};
 $('fileButton').onclick=()=>$('file').click();
 $('replaceSavedChoices').onclick=e=>{const b=e.target.closest('[data-replace-saved]');if(!b)return;$('replaceSavedDialog').close();storeForces(+b.dataset.replaceSaved)};$('cancelSaved').onclick=()=>$('replaceSavedDialog').close();
 $('previousList').onclick=e=>{const b=e.target.closest('[data-remove-saved]');if(!b)return;savedTeams.splice(+b.dataset.removeSaved,1);localStorage.setItem('saved-forces-v1',JSON.stringify(savedTeams));renderPrevious()};
