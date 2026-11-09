@@ -301,6 +301,7 @@ dialog::backdrop{background:#0007}
   <label>תאריך משחק <input id="cfgDate" type="date"></label>
   <label class="timed-only">שעת הגרלת כוחות <input id="cfgDraw" type="time" value="20:35"></label>
  </div>
+ <label class="field-toggle"><input type="checkbox" id="cfgIndexDraw"> <b>כפתור "הגרל" בדף הציבורי — במכשיר הזה בלבד</b> <span class="muted">— מופיע רק בטלפון הזה (לא מסתנכרן ולא מופיע אצל אחרים). "הגרל" = "צור קבוצות", "הגרל שוב" = "הגרל שוב", ומתפרסם מיד.</span></label>
  <label class="field-toggle"><input type="checkbox" id="cfgDrawAtField"> <b>הגרלה במגרש</b> <span class="muted">— ללא הגרלה אוטומטית וללא שעת הגרלה. במגרש: "צור קבוצות" ואז "⚡ פרסם עכשיו!"</span></label>
  <label style="display:block;margin-top:8px">כותרת משנה (ניתן בכמה שורות)<textarea id="cfgSubtitle" rows="2" style="width:100%;min-height:52px" placeholder="לדוגמה: משחק שבועי · נא להגיע בזמן"></textarea></label>
  <h4 class="input-heading">קישורי תשלום (דף הלקוח)</h4>
@@ -421,7 +422,7 @@ dialog::backdrop{background:#0007}
  <div id="togetherList"></div>
 </details>
 
-<p class="muted">הנתונים נשמרים מקומית בדפדפן זה בלבד. מומלץ לשמור עותק גיבוי (JSON) של השחקנים ושל היסטוריית המחזורים.</p><p class="muted" style="text-align:center;font-size:12px;opacity:.7">גרסה 54</p></main>
+<p class="muted">הנתונים נשמרים מקומית בדפדפן זה בלבד. מומלץ לשמור עותק גיבוי (JSON) של השחקנים ושל היסטוריית המחזורים.</p><p class="muted" style="text-align:center;font-size:12px;opacity:.7">גרסה 56</p></main>
 
 <dialog id="ratingReviewDialog"><h3>בדיקת שינויי דירוג</h3><p class="muted">השחקנים הבאים כבר קיימים במאגר עם דירוג שונה. בחר אילו לעדכן:</p><div id="ratingReviewList"></div><div class="row"><button id="ratingUpdateAll">עדכן לכולם</button><button id="ratingApplySelected" class="secondary">עדכן מסומנים</button><button id="ratingSkipAll" class="secondary">דלג</button></div></dialog>
 <dialog id="colorDialog"><h3>בחר צבע לקבוצה</h3><div id="colorChoices" class="row"></div><button id="colorCancel" class="secondary">ביטול</button></dialog>
@@ -431,12 +432,13 @@ dialog::backdrop{background:#0007}
 <dialog id="promoteDialog"><h3>את מי להחליף בהרכב?</h3><div id="promoteChoices"></div><div class="row"><button id="promoteCancel" class="secondary">ביטול</button></div></dialog>
 <dialog id="matchDialog"><h3 id="matchTitle">בחר שחקן</h3><div id="matchChoices"></div><div class="row"><button id="confirmMatches">הוסף מסומנים</button><button id="skipMatch" class="secondary">דלג על שם זה</button><button id="cancelMatch" class="danger">בטל קליטה</button></div></dialog>
 <dialog id="rateDialog"><h3 id="rateTitle">עריכת דירוג</h3><label>דירוג כללי (0–5) <input id="rateRating" type="number" min="0" max="5" step="0.1"></label><label style="display:block;margin-top:8px">דירוג כושר (1 נמוך · 3 גבוה) <select id="rateFitness"><option value="low">1</option><option value="mid">2</option><option value="high">3</option></select></label><div class="row" style="margin-top:12px"><button id="rateSave">שמור</button><button id="rateCancel" class="secondary">ביטול</button></div></dialog>
+<script src="algo.js"></script>
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id),KEY='team-balancer-v1',STATE='team-balancer-state-v7',HKEY='rounds-history-v1',ROUND='team-balancer-round-v2',JTALLY='jersey-tally-v1',JEXCL='jersey-excluded-v1',JLOG='jersey-log-v1';
 /* פרמטרי אלגוריתם */
 const FIT_VALUES=['low','mid','high'],FIT_LABEL={low:'חלש',mid:'בינוני',high:'גבוה'},FIT_NUM={low:1,mid:2,high:3},NUM_FIT={1:'low',2:'mid',3:'high'};
-const W_BALANCE=20,W_SPREAD=0.3,W_FITNESS=2.2,LINK_PENALTY=60;
+/* פרמטרי האלגוריתם — ב-algo.js */
 let duplicateItems=[],savedTeams=[],promoteId=null,colorTarget=0,teamColors=["blue","red","yellow"],players=[],selected=[],subs=[],pickHistory=[],teams=null,history=[],first=null,editing=false,queue=[],pending=[],pendingReplace=false,timer,uncertain=new Set(),pendingUncertain=new Set(),currentQuestion=false,currentSub=false,pendingSub=new Set(),linkWith={},linkWithout={},roundHistory=[],roundNumber=1,paid=new Set();
 /* גופיות: jerseyTally = מפה {שם_מנורמל: {name, count}}; jerseyExcluded = Set של id שחקנים; jerseyPick = id הלוקח למחזור */
 let jerseyTally={},jerseyExcluded=new Set(),jerseyPick=null,jerseyPickName='';
@@ -488,7 +490,7 @@ async function cloudInit(){if(location.protocol==='file:'){cloudStatus('מצב �
   }catch(e){if(e.code===401){cloudPw='';localStorage.removeItem(PWKEY);pw='';alert('סיסמה שגויה, נסה שוב')}else{cloudReady=false;cloudStatus('אין חיבור לענן — עובד מקומית','err');return}}}
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(players));localStorage.setItem(CFGKEY,JSON.stringify(cfg));sessionStorage.setItem(STATE,JSON.stringify({target:+$('target').value}));persistRound()}catch(e){toast('לא ניתן לשמור בדפדפן זה')}scheduleCloudSave()}
-function persistRound(){try{localStorage.setItem(ROUND,JSON.stringify({roundNumber,target:+$('target').value,selected,subs,uncertain:[...uncertain],paid:[...paid],linkWith,linkWithout,teamColors:[...teamColors],teams,finalShown:$('finalPanel').style.display!=='none',jerseyPick,jerseyPickName}))}catch(e){}}
+function persistRound(){try{localStorage.setItem(ROUND,JSON.stringify({roundNumber,target:+$('target').value,selected,subs,uncertain:[...uncertain],paid:[...paid],linkWith,linkWithout,keep:linkWith,split:linkWithout,teamColors:[...teamColors],teams,finalShown:$('finalPanel').style.display!=='none',jerseyPick,jerseyPickName}))}catch(e){}}
 function load(){try{const a=JSON.parse(localStorage.getItem(KEY)||'[]');players=a.filter(p=>p&&typeof p.name==='string'&&Number.isFinite(+p.rating)).map(p=>({id:String(p.id||id()),name:p.name.trim(),rating:+p.rating,fitness:normFit(p.fitness)}));const s=JSON.parse(sessionStorage.getItem(STATE)||'{}');try{savedTeams=JSON.parse(localStorage.getItem('saved-forces-v1')||'[]').slice(0,2)}catch(e){savedTeams=[]}try{roundHistory=JSON.parse(localStorage.getItem(HKEY)||'[]');if(!Array.isArray(roundHistory))roundHistory=[]}catch(e){roundHistory=[]}
  /* ניקוי כפילויות ישנות: אותו מספר מחזור נשמר פעמיים — נשארת הרשומה החדשה (הראשונה ברשימה) */
  {const seen=new Set(),before=roundHistory.length;roundHistory=roundHistory.filter(r=>{if(!r||r.round==null)return true;if(seen.has(r.round))return false;seen.add(r.round);return true});if(roundHistory.length!==before)try{localStorage.setItem(HKEY,JSON.stringify(roundHistory))}catch(e){}}
@@ -587,56 +589,11 @@ function saveRound(force){if(!teams)return;const z=n=>String(n).padStart(2,'0'),
  if(roundHistory.length>50)roundHistory.length=50;try{localStorage.setItem(HKEY,JSON.stringify(roundHistory))}catch(e){}renderHistory();$('historyCount').textContent=`(${roundHistory.length})`}
 
 function sum(t){return t.reduce((s,i)=>s+(player(i)?.rating||0),0)}
-/* הפרות "משחק יחד" בחלוקה נתונה: זוג "לשחק עם" בקבוצות שונות / זוג "לא לשחק עם" באותה קבוצה */
-function linkViolations(t){const where={};t.forEach((a,k)=>a.forEach(i=>where[i]=k));let v=0;for(const a in linkWith){const b=linkWith[a];if(where[a]!=null&&where[b]!=null&&where[a]!==where[b])v++}for(const a in linkWithout){const b=linkWithout[a];if(where[a]!=null&&where[b]!=null&&where[a]===where[b])v++}return v}
-function score(t,useLinks){const means=t.map(a=>a.length?sum(a)/a.length:0),avg=means.reduce((a,b)=>a+b,0)/3;let c=means.reduce((s,x)=>s+(x-avg)**2,0)*W_BALANCE;const overall=selected.map(i=>player(i)?.rating||0).sort((a,b)=>b-a);const cut1=overall[Math.floor(overall.length/3)-1]??5,cut2=overall[Math.floor(overall.length*2/3)-1]??0;for(const threshold of [cut1,cut2]){const counts=t.map(a=>a.filter(i=>(player(i)?.rating||0)>=threshold).length);c+=counts.reduce((s,x)=>s+(x-counts.reduce((a,b)=>a+b,0)/3)**2,0)*W_SPREAD}
- /* איזון כושר גופני בין הקבוצות */
- const fitSums=t.map(a=>a.reduce((s,i)=>s+FIT_NUM[player(i)?.fitness||'mid'],0)),fitAvg=fitSums.reduce((a,b)=>a+b,0)/3;c+=fitSums.reduce((s,x)=>s+(x-fitAvg)**2,0)*W_FITNESS;
- /* משחק יחד — רק ב"צור קבוצות"; עונש גבוה מאוד כך שהאלגוריתם מעדיף לכבד את ההעדפות על פני איזון */
- if(useLinks)c+=linkViolations(t)*LINK_PENALTY;
- return c}
-function shuffleArr(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-/* useLinks=true ב"צור קבוצות" (מתחשב ב"משחק יחד"); false ב"הגרל שוב" (הגרלה חדשה לגמרי, מתעלם מ"משחק יחד") */
+/* useLinks=true ב"צור קבוצות" (מתחשב ב"משחק יחד"); false ב"הגרל שוב" (הגרלה חדשה לגמרי, מתעלם מ"משחק יחד").
+   האלגוריתם עצמו ב-algo.js (משותף עם כפתור "הגרל" בדף הציבורי) */
 function makeTeams(useLinks){const count=+$('target').value;if(!Number.isInteger(count)||count<3)return toast('יש להגדיר לפחות 3 מקומות');if(selected.length<3)return toast('יש לבחור לפחות 3 שחקנים');
- const ranked=[...selected].sort((a,b)=>(player(b)?.rating||0)-(player(a)?.rating||0)||String(a).localeCompare(String(b)));
- const N=ranked.length,useAnchors=N>=6;
- const topAnchors=useAnchors?ranked.slice(0,3):[],bottomAnchors=useAnchors?ranked.slice(N-3):[];
- const anchorSet=new Set([...topAnchors,...bottomAnchors]);
- const middle=ranked.filter(i=>!anchorSet.has(i));
- const cls=i=>topAnchors.indexOf(i)>=0?0:bottomAnchors.indexOf(i)>=0?1:2; /* 0 עליון · 1 תחתון · 2 אמצע */
- /* סטיית הממוצעים (max-min)/avg — משמשת לסינון מועמדים */
- const meanSpread=t=>{const m=t.map(a=>a.length?sum(a)/a.length:0),av=(m[0]+m[1]+m[2])/3;return av>0?(Math.max(...m)-Math.min(...m))/av:0};
- const TOLERANCE=0.10; /* עד 10% סטייה בין ממוצעי הדירוג (רמת איזון ≥ 90%) */
- /* פער ממוצעי כושר (סולם 1–3) בין הקבוצה החזקה לחלשה בכושר */
- const FIT_TOL=0.5,fitSpread=t=>{const m=t.map(a=>a.length?fitSum(a)/a.length:0);return Math.max(...m)-Math.min(...m)};
- const inRange=t=>meanSpread(t)<=TOLERANCE&&fitSpread(t)<=FIT_TOL;
- let best=null,bestCost=Infinity;const candidates=[];
- const consider=t=>{if(inRange(t))candidates.push({t:t.map(x=>[...x]),v:useLinks?linkViolations(t):0})};
- for(let trial=0;trial<120;trial++){
-  let t=[[],[],[]];
-  if(useAnchors){const to=shuffleArr([0,1,2]),bo=shuffleArr([0,1,2]);topAnchors.forEach((pid,k)=>t[to[k]].push(pid));bottomAnchors.forEach((pid,k)=>t[bo[k]].push(pid))}
-  shuffleArr(middle).forEach(pid=>{t.reduce((m,x)=>x.length<m.length?x:m).push(pid)});
-  /* גם החלוקה האקראית הגולמית (לפני שיפור) היא מועמדת אם היא בטווח — מגדיל את הרנדומליות */
-  consider(t);
-  let cur=score(t,useLinks);
-  for(let step=0;step<200;step++){let improvement=false;
-   for(let a=0;a<3;a++)for(let b=a+1;b<3;b++)for(let i=0;i<t[a].length;i++)for(let j=0;j<t[b].length;j++){
-    if(useAnchors&&cls(t[a][i])!==cls(t[b][j]))continue;
-    [t[a][i],t[b][j]]=[t[b][j],t[a][i]];let v=score(t,useLinks);if(v+1e-9<cur){cur=v;improvement=true}else[t[a][i],t[b][j]]=[t[b][j],t[a][i]]}
-   if(!improvement)break}
-  if(cur<bestCost){bestCost=cur;best=t.map(x=>[...x])}
-  consider(t);}
- /* ב"צור קבוצות": רק המועמדים עם מינימום הפרות "משחק יחד"; ואז בחירה אקראית ביניהם */
- let pool=candidates;
- if(useLinks&&pool.length){const minV=Math.min(...pool.map(c=>c.v));pool=pool.filter(c=>c.v===minV);if(best&&linkViolations(best)<minV)pool=[]}
- teams=pool.length?pool[Math.floor(Math.random()*pool.length)].t:best;
- /* הליכה אקראית: החלפות אקראיות בתוך אותה מחלקה, שמתקבלות רק אם נשארים בטווח הסטייה ולא מוסיפים הפרות "משחק יחד" — מגוון גבוה בין הגרלות */
- {const baseV=useLinks?linkViolations(teams):0;
-  for(let k=0;k<400;k++){const a=Math.floor(Math.random()*3),b=(a+1+Math.floor(Math.random()*2))%3,i=Math.floor(Math.random()*teams[a].length),j=Math.floor(Math.random()*teams[b].length);
-   if(useAnchors&&cls(teams[a][i])!==cls(teams[b][j]))continue;
-   [teams[a][i],teams[b][j]]=[teams[b][j],teams[a][i]];
-   if(!inRange(teams)||(useLinks&&linkViolations(teams)>baseV))[teams[a][i],teams[b][j]]=[teams[b][j],teams[a][i]]}}
- history=[];first=null;render();toast(useLinks?'נוצרו 3 קבוצות':'הוגרלו קבוצות חדשות')}
+ const t=TeamAlgo.makeTeams({players,selected,keep:linkWith,split:linkWithout,strict:useLinks});if(!t)return toast('יש לבחור לפחות 3 שחקנים');
+ teams=t;history=[];first=null;render();toast(useLinks?'נוצרו 3 קבוצות':'הוגרלו קבוצות חדשות')}
 function fitSum(t){return t.reduce((s,i)=>s+fitNum(player(i)?.fitness||'mid'),0)}
 function renderTeams(){for(const [node,final] of [[$('teams'),false],[$('finalTeams'),true]]){node.innerHTML=teams?teams.map((t,k)=>`<div class="team ${colors[k]}"><h3>${labels[k]}</h3>${t.map(i=>{const p=player(i);return p?`<div class="person ${!final&&first&&first.id===i?'active':''}" ${final?'':`data-team="${k}" data-player="${esc(i)}"`}>${esc(p.name)}${final?'':` <span class="muted">(${p.rating})</span>`}</div>`:''}).join('')}${final?'':`<div class="total"><span class="stat"><span class="stat-k">דירוג כללי</span><span class="stat-v">${(sum(t)/t.length).toFixed(2)}</span></span><span class="stat"><span class="stat-k">כושר</span><span class="stat-v">${(fitSum(t)/t.length).toFixed(2)}</span></span></div><button class="color-change" data-color-team="${k}" type="button">שנה צבע</button>`}</div>`).join(''):'<p class="muted">לא נוצרו קבוצות עדיין</p>'}const means=teams?.filter(t=>t.length).map(t=>sum(t)/t.length)||[];const avg=means.length?means.reduce((a,b)=>a+b,0)/means.length:0;const balance=avg>0?(1-(Math.max(...means)-Math.min(...means))/avg)*100:100;$('diff').innerHTML=means.length?'רמת איזון (דירוג כללי): '+balance.toFixed(2)+'%<div class="fit-legend">הכושר משמש לאיזון משני בלבד · מקרא כושר: 1 = נמוך · 3 = גבוה</div>':''}
 function textTeams(){return teams?'⚽ כוחות ⚽\n\n'+teams.map((t,k)=>labels[k]+'\n'+t.map(i=>player(i)?.name||'').join('\n')).join('\n\n'):''}
@@ -667,6 +624,9 @@ function syncCfgInputs(){$('cfgTitle').value=cfg.title||'';$('cfgSubtitle').valu
 $('cfgTitle').oninput=()=>{cfg.title=$('cfgTitle').value.replace(/^\s+|\s+$/g,'');const rl=$('roundLabel');if(rl)rl.textContent=cfg.title||"מגרש מס' 2";save()};
 $('cfgSubtitle').oninput=()=>{cfg.subtitle=$('cfgSubtitle').value.replace(/^\s+|\s+$/g,'');save()};
 $('cfgDate').onchange=()=>{cfg.matchDate=$('cfgDate').value;save()};
+/* כפתור הגרלה בדף הציבורי — הגדרה מקומית למכשיר בלבד (index.html קורא את אותו localStorage) */
+const IDXDRAW='index-draw-device';$('cfgIndexDraw').checked=localStorage.getItem(IDXDRAW)==='1';
+$('cfgIndexDraw').onchange=e=>{if(e.target.checked){localStorage.setItem(IDXDRAW,'1');toast(cloudPw?'בדף הציבורי במכשיר הזה יופיע כפתור "הגרל"':'הופעל — אבל כדי שההגרלה תתפרסם צריך חיבור לענן (סיסמת סנכרון)')}else{localStorage.removeItem(IDXDRAW);toast('כפתור ההגרלה הוסר מהדף הציבורי')}};
 $('cfgDrawAtField').onchange=()=>{cfg.drawAtField=$('cfgDrawAtField').checked;syncCfgInputs();save();toast(cfg.drawAtField?'הגרלה במגרש הופעלה — אין הגרלה אוטומטית':'הגרלה במגרש בוטלה — חזרה להגרלה בשעה')};
 $('cfgDraw').onchange=()=>{cfg.drawTime=$('cfgDraw').value||'20:35';save()};
 $('cfgPayBit').oninput=()=>{cfg.payBit=$('cfgPayBit').value.trim();save()};

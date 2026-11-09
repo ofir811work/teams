@@ -12,3 +12,88 @@
   from = "/api/public"
   to = "/.netlify/functions/public"
   status = 200
+
+# קבצים פנימיים — לא נגישים מהאתר (מחזיר 404 גם אם הקובץ הגיע לפריסה בטעות)
+[[redirects]]
+  from = "/CLAUDE.md"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package.json"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify.toml"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.gitignore"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/test/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/CLOUD/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/_icons_old/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/_devserver.cjs"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/_make_icons.ps1"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/teams_v41.html"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/ofir.txt"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/koved-deploy.zip"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/players.json"
+  to = "/404"
+  status = 404
+  force = true

@@ -1,0 +1,31 @@
+# קבצים שלא מועלים ל-repo
+
+# שרת בדיקה מקומי בלבד
+_devserver.cjs
+
+# תיקיית קבצי בדיקה עם דטה לדוגמה (נוצרת ע"י test/_gen.cjs)
+test/
+
+# גיבוי האפליקציה הישנה
+teams_v41.html
+
+# רשימת שחקנים — נשמרת בענן (Netlify Blobs), לא ב-git
+players.json
+players-*.json
+rounds-history.json
+
+# תיקיית עבודה / כלים
+.claude/
+node_modules/
+.DS_Store
+Thumbs.db
+
+# גיבוי האייקונים הקודמים
+_icons_old/
+_make_icons.ps1
+
+# תיעוד פנימי (מתאר פיצ׳רים וסיסמת מעבר) — לא מועלה ולא מתפרסם באתר
+CLAUDE.md
+
+# קובץ פריסה ידנית ישן
+koved-deploy.zip
