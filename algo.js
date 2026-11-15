@@ -2,99 +2,95 @@
 (function () {
   'use strict';
   const FIT_NUM = { low: 1, mid: 2, high: 3 };
-  const W_BALANCE = 20, W_SPREAD = 0.3, W_FITNESS = 2.2, PREF_W = 60;
-  const TOLERANCE = 0.10; /* עד 10% סטייה בין ממוצעי הדירוג (רמת איזון ≥ 90%) */
-  const FIT_TOL = 0.5;    /* פער ממוצעי כושר (סולם 1–3) בין הקבוצות */
-
-  /* opts: {players:[{id,rating,fitness}], selected:[id], keep:{id:id}, split:{id:id}, strict:bool}
-     מחזיר מערך של 3 קבוצות (מערכי id), או null אם יש פחות מ-3 שחקנים */
-  function makeTeams(opts) {
+  const MIN_BALANCE = 95.2; /* רמת איזון מינימלית (%) — המדד החשוב ביותר */
+  const TOP_N = 5;          /* התוצאה נבחרת באקראי מבין 5 החלוקות הטובות ביותר */
+  /* עלות ביחידות של "אחוז איזון": כושר והעדפות רשות שוקלים מעט — לכל היותר בערך חצי אחוז איזון */
+  const W_FIT = 0.5, W_SOFT = 0.3, W_HARD = 1000, W_VAR = 20;
+  const TRIALS = 200;
+  function setup(opts) {
     const byId = new Map((opts.players || []).map(p => [p.id, p]));
     const selected = (opts.selected || []).filter(i => byId.has(i));
-    const keep = opts.keep || {}, split = opts.split || {}, strict = !!opts.strict;
-    if (selected.length < 3) return null;
     const rating = i => +(byId.get(i)?.rating) || 0;
     const fit = i => FIT_NUM[byId.get(i)?.fitness] || 2;
-    const sum = t => t.reduce((s, i) => s + rating(i), 0);
-    const fitSum = t => t.reduce((s, i) => s + fit(i), 0);
-    const shuffleArr = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-
-    /* העדפות שיבוץ: keep — באותה קבוצה, split — בקבוצות שונות */
-    function prefMisses(t) {
-      const where = {}; t.forEach((a, k) => a.forEach(i => where[i] = k)); let v = 0;
-      for (const a in keep) { const b = keep[a]; if (where[a] != null && where[b] != null && where[a] !== where[b]) v++; }
-      for (const a in split) { const b = split[a]; if (where[a] != null && where[b] != null && where[a] === where[b]) v++; }
-      return v;
+    const keep = opts.keep || {}, split = opts.split || {}, keepMust = opts.keepMust || {}, splitMust = opts.splitMust || {};
+    const strict = !!opts.strict;
+    const mean = (a, f) => a.length ? a.reduce((s, i) => s + f(i), 0) / a.length : 0;
+    /* רמת איזון: 1 − (ממוצע גבוה − ממוצע נמוך) / ממוצע כללי — זהה לתצוגה באדמין */
+    const balance = t => { const m = t.map(a => mean(a, rating)), av = (m[0] + m[1] + m[2]) / 3; return av > 0 ? (1 - (Math.max(...m) - Math.min(...m)) / av) * 100 : 100; };
+    const fitGap = t => { const m = t.map(a => mean(a, fit)); return Math.max(...m) - Math.min(...m); };
+    /* העדפות שיבוץ: keep — באותה קבוצה, split — בקבוצות שונות; *Must — חובה */
+    function misses(t) {
+      const where = {}; t.forEach((a, k) => a.forEach(i => where[i] = k)); let hard = 0, soft = 0;
+      for (const a in keep) { const b = keep[a]; if (where[a] != null && where[b] != null && where[a] !== where[b]) keepMust[a] ? hard++ : soft++; }
+      for (const a in split) { const b = split[a]; if (where[a] != null && where[b] != null && where[a] === where[b]) splitMust[a] ? hard++ : soft++; }
+      return { hard, soft };
     }
-    const overall = selected.map(rating).sort((a, b) => b - a);
-    const cut1 = overall[Math.floor(overall.length / 3) - 1] ?? 5, cut2 = overall[Math.floor(overall.length * 2 / 3) - 1] ?? 0;
-    function score(t) {
-      const means = t.map(a => a.length ? sum(a) / a.length : 0), avg = means.reduce((a, b) => a + b, 0) / 3;
-      let c = means.reduce((s, x) => s + (x - avg) ** 2, 0) * W_BALANCE;
-      for (const threshold of [cut1, cut2]) {
-        const counts = t.map(a => a.filter(i => rating(i) >= threshold).length);
-        c += counts.reduce((s, x) => s + (x - counts.reduce((a, b) => a + b, 0) / 3) ** 2, 0) * W_SPREAD;
-      }
-      /* איזון כושר גופני בין הקבוצות */
-      const fitSums = t.map(fitSum), fitAvg = fitSums.reduce((a, b) => a + b, 0) / 3;
-      c += fitSums.reduce((s, x) => s + (x - fitAvg) ** 2, 0) * W_FITNESS;
-      /* העדפות — רק במצב strict */
-      if (strict) c += prefMisses(t) * PREF_W;
+    function cost(t) {
+      const m = t.map(a => mean(a, rating)), av = (m[0] + m[1] + m[2]) / 3;
+      let c = (100 - balance(t)) + W_FIT * fitGap(t) + W_VAR * m.reduce((s, x) => s + (x - av) ** 2, 0);
+      if (strict) { const x = misses(t); c += W_HARD * x.hard + W_SOFT * x.soft; }
       return c;
     }
-
-    const ranked = [...selected].sort((a, b) => rating(b) - rating(a) || String(a).localeCompare(String(b)));
+    return { selected, rating, balance, fitGap, misses, cost, strict };
+  }
+  const keyOf = t => t.map(g => [...g].sort().join(',')).sort().join('|');
+  const shuffleArr = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  /* opts: {players, selected, keep, split, keepMust, splitMust, strict, avoid}
+     strict=true — "צור קבוצות"/"הגרל" (מתחשב בהעדפות); false — "הגרל שוב" (מתעלם מהן).
+     avoid — החלוקה הנוכחית, כדי שהגרלה חוזרת תיתן תוצאה אחרת. מחזיר 3 קבוצות (מערכי id) או null. */
+  function makeTeams(opts) {
+    const S = setup(opts), sel = S.selected;
+    if (sel.length < 3) return null;
+    const ranked = [...sel].sort((a, b) => S.rating(b) - S.rating(a) || String(a).localeCompare(String(b)));
     const N = ranked.length, useAnchors = N >= 6;
-    const topAnchors = useAnchors ? ranked.slice(0, 3) : [], bottomAnchors = useAnchors ? ranked.slice(N - 3) : [];
-    const anchorSet = new Set([...topAnchors, ...bottomAnchors]);
-    const middle = ranked.filter(i => !anchorSet.has(i));
-    const cls = i => topAnchors.indexOf(i) >= 0 ? 0 : bottomAnchors.indexOf(i) >= 0 ? 1 : 2; /* 0 עליון · 1 תחתון · 2 אמצע */
-    /* סטיית הממוצעים (max-min)/avg, ופער ממוצעי הכושר — לסינון מועמדים */
-    const meanSpread = t => { const m = t.map(a => a.length ? sum(a) / a.length : 0), av = (m[0] + m[1] + m[2]) / 3; return av > 0 ? (Math.max(...m) - Math.min(...m)) / av : 0; };
-    const fitSpread = t => { const m = t.map(a => a.length ? fitSum(a) / a.length : 0); return Math.max(...m) - Math.min(...m); };
-    const inRange = t => meanSpread(t) <= TOLERANCE && fitSpread(t) <= FIT_TOL;
-
-    let best = null, bestCost = Infinity; const candidates = [];
-    const consider = t => { if (inRange(t)) candidates.push({ t: t.map(x => [...x]), v: strict ? prefMisses(t) : 0 }); };
-    for (let trial = 0; trial < 120; trial++) {
+    /* 3 החזקים ו-3 החלשים — אחד לכל קבוצה; החלפות רק בתוך אותה מחלקה */
+    const top = useAnchors ? ranked.slice(0, 3) : [], bottom = useAnchors ? ranked.slice(N - 3) : [];
+    const anchored = new Set([...top, ...bottom]), middle = ranked.filter(i => !anchored.has(i));
+    const cls = i => top.includes(i) ? 0 : bottom.includes(i) ? 1 : 2;
+    const cands = new Map();
+    for (let trial = 0; trial < TRIALS; trial++) {
       const t = [[], [], []];
-      if (useAnchors) { const to = shuffleArr([0, 1, 2]), bo = shuffleArr([0, 1, 2]); topAnchors.forEach((pid, k) => t[to[k]].push(pid)); bottomAnchors.forEach((pid, k) => t[bo[k]].push(pid)); }
-      shuffleArr(middle).forEach(pid => { t.reduce((m, x) => x.length < m.length ? x : m).push(pid); });
-      /* גם החלוקה האקראית הגולמית (לפני שיפור) היא מועמדת אם היא בטווח — מגדיל את הרנדומליות */
-      consider(t);
-      let cur = score(t);
+      if (useAnchors) { const to = shuffleArr([0, 1, 2]), bo = shuffleArr([0, 1, 2]); top.forEach((p, k) => t[to[k]].push(p)); bottom.forEach((p, k) => t[bo[k]].push(p)); }
+      shuffleArr(middle).forEach(p => { t.reduce((m, x) => x.length < m.length ? x : m).push(p); });
+      let cur = S.cost(t);
       for (let step = 0; step < 200; step++) {
-        let improvement = false;
+        let improved = false;
         for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) for (let i = 0; i < t[a].length; i++) for (let j = 0; j < t[b].length; j++) {
           if (useAnchors && cls(t[a][i]) !== cls(t[b][j])) continue;
-          [t[a][i], t[b][j]] = [t[b][j], t[a][i]]; const v = score(t);
-          if (v + 1e-9 < cur) { cur = v; improvement = true; } else[t[a][i], t[b][j]] = [t[b][j], t[a][i]];
+          [t[a][i], t[b][j]] = [t[b][j], t[a][i]];
+          const v = S.cost(t);
+          if (v + 1e-9 < cur) { cur = v; improved = true; } else[t[a][i], t[b][j]] = [t[b][j], t[a][i]];
         }
-        if (!improvement) break;
+        if (!improved) break;
       }
-      if (cur < bestCost) { bestCost = cur; best = t.map(x => [...x]); }
-      consider(t);
+      const k = keyOf(t);
+      if (!cands.has(k)) cands.set(k, { t: t.map(x => [...x]), cost: cur, bal: S.balance(t), hard: S.strict ? S.misses(t).hard : 0 });
     }
-    /* במצב strict: רק המועמדים עם מינימום החטאות העדפה; ואז בחירה אקראית ביניהם */
-    let pool = candidates;
-    if (strict && pool.length) { const minV = Math.min(...pool.map(c => c.v)); pool = pool.filter(c => c.v === minV); if (best && prefMisses(best) < minV) pool = []; }
-    const teams = pool.length ? pool[Math.floor(Math.random() * pool.length)].t : best;
-    /* הליכה אקראית: החלפות בתוך אותה מחלקה שנשארות בטווח — מגוון בין הגרלות */
-    const baseV = strict ? prefMisses(teams) : 0;
-    for (let k = 0; k < 400; k++) {
-      const a = Math.floor(Math.random() * 3), b = (a + 1 + Math.floor(Math.random() * 2)) % 3, i = Math.floor(Math.random() * teams[a].length), j = Math.floor(Math.random() * teams[b].length);
-      if (useAnchors && cls(teams[a][i]) !== cls(teams[b][j])) continue;
-      [teams[a][i], teams[b][j]] = [teams[b][j], teams[a][i]];
-      if (!inRange(teams) || (strict && prefMisses(teams) > baseV)) [teams[a][i], teams[b][j]] = [teams[b][j], teams[a][i]];
+    let pool = [...cands.values()];
+    /* 1) חובה — כמה שפחות הפרות (רק אם זה לא מוריד מתחת לרמת האיזון המינימלית) */
+    const okBal = pool.filter(c => c.bal >= MIN_BALANCE);
+    if (okBal.length) {
+      pool = okBal;
+      if (S.strict) { const minHard = Math.min(...pool.map(c => c.hard)); pool = pool.filter(c => c.hard === minHard); }
     }
-    return teams;
+    /* 2) מיון לפי עלות (איזון קודם, אחר כך כושר והעדפות רשות) ובחירה אקראית מבין 5 הטובות */
+    pool.sort((a, b) => a.cost - b.cost);
+    const avoidKey = opts.avoid && opts.avoid.length === 3 ? keyOf(opts.avoid) : null;
+    if (avoidKey && pool.length > 1) pool = pool.filter(c => keyOf(c.t) !== avoidKey);
+    const top5 = pool.slice(0, TOP_N);
+    return top5[Math.floor(Math.random() * top5.length)].t;
   }
-
-  /* הגרלה ממצב מחזור שמור (round): strict=true בהגרלה ראשונה */
-  function fromRound(players, round, strict) {
+  /* מדדים לחלוקה קיימת: רמת איזון (%), פער כושר, והפרות העדפה (חובה/רשות) */
+  function check(teams, opts) {
+    const S = setup({ ...opts, strict: true });
+    const m = S.misses(teams);
+    return { balance: S.balance(teams), fitGap: S.fitGap(teams), hardMiss: m.hard, softMiss: m.soft, minBalance: MIN_BALANCE };
+  }
+  /* הגרלה ממצב מחזור שמור (round): strict=true בהגרלה ראשונה; avoid = החלוקה הנוכחית */
+  function fromRound(players, round, strict, avoid) {
     const ids = new Set((players || []).map(p => p.id));
-    return makeTeams({ players, selected: (round.selected || []).filter(i => ids.has(i)), keep: round.keep, split: round.split, strict });
+    return makeTeams({ players, selected: (round.selected || []).filter(i => ids.has(i)), keep: round.keep, split: round.split, keepMust: round.keepMust, splitMust: round.splitMust, strict, avoid });
   }
 
-  globalThis.TeamAlgo = { makeTeams, fromRound, FIT_NUM };
+  globalThis.TeamAlgo = { makeTeams, fromRound, check, FIT_NUM, MIN_BALANCE };
 })();
