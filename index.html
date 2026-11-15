@@ -90,6 +90,15 @@ main{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:calc(14px
 .jersey-note{margin-top:14px;text-align:center;font-size:16px;color:var(--bg1);background:linear-gradient(135deg,#eaf4ff,#f4f9ff);border:1px solid #cfe2f7;border-radius:12px;padding:12px 14px}
 .jersey-note b{font-weight:800;color:var(--bg2)}
 
+/* שינוי צבע קבוצה (מכשיר המנהל בלבד) */
+.team h3{position:relative}
+.team h3.has-tc{padding-inline:26px}
+.tcolor{position:absolute;inset-inline-start:3px;top:50%;transform:translateY(-50%);border:0;background:rgba(255,255,255,.8);border-radius:50%;width:24px;height:24px;padding:0;font-size:12px;line-height:24px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.tc-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:6px}
+.tc-grid button{display:block;width:100%;aspect-ratio:1;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px #c4d0de;cursor:pointer;padding:0;font-size:0}
+.tc-grid button.cur{box-shadow:0 0 0 3px var(--bg2)}
+.tc-grid .lbl{display:block;font-size:11px;text-align:center;color:var(--muted);margin-top:3px}
+
 /* כפתור הגרלה (מכשיר המנהל בלבד) */
 .drawbox{max-width:460px;margin:0 auto 18px;text-align:center;animation:fadeUp .45s ease both}
 .draw-btn{width:100%;border:0;border-radius:16px;padding:16px 18px;font-size:21px;font-weight:800;color:#3a2600;cursor:pointer;
@@ -224,7 +233,7 @@ body.standalone .gear{display:none!important}
  </div>
 </div>
 
-<div class="foot">גרסה 57 · מתעדכן אוטומטית</div>
+<div class="foot">גרסה 58 · מתעדכן אוטומטית</div>
 </main>
 
 <div class="install" id="install">
@@ -238,6 +247,12 @@ body.standalone .gear{display:none!important}
 <div class="fx" id="drawFx" aria-hidden="true"><canvas id="fxConfetti"></canvas><div class="fx-inner"><div class="fx-ballwrap"><span class="fx-ball">⚽</span></div><div class="fx-title" id="fxTitle"></div><div class="fx-cols" id="fxCols"></div><div class="fx-hint">לחיצה לסגירה</div></div></div>
 <div class="itoast" id="itoast" role="status" aria-live="polite"></div>
 <div class="update" id="updateBar"><span>יש גרסה חדשה 🎉</span><button id="updateBtn">רענן</button></div>
+
+<dialog id="tcDialog">
+ <h3 id="tcTitle">בחר צבע</h3>
+ <div class="tc-grid" id="tcGrid"></div>
+ <div class="row"><button class="cancel" id="tcCancel" type="button">ביטול</button></div>
+</dialog>
 
 <dialog id="pwDialog">
  <h3>🔒 כניסת מנהל</h3>
@@ -289,8 +304,8 @@ function render(){
  } else {$('drawnote').style.display='none'}
 
  if(showTeams){
-  const jersey=(pub.jersey||'').trim();
-  $('content').innerHTML='<div class="card"><h2><span class="ico">⚽</span>הכוחות<span class="ico">⚽</span></h2><div class="teams">'+pub.teams.map((g,k)=>`<div class="team ${(pub.colors||COLORS)[k]||COLORS[k]}" style="animation-delay:${k*0.07}s"><h3>${esc(LABELS[k])}</h3>${g.map(n=>`<div class="p">${esc(n)}</div>`).join('')}</div>`).join('')+'</div>'+(jersey?`<div class="jersey-note">🎽 גופיות: <b>${esc(jersey)}</b></div>`:'')+'</div>';
+  const jersey=(pub.jersey||'').trim(),own=isOwner();
+  $('content').innerHTML='<div class="card"><h2><span class="ico">⚽</span>הכוחות<span class="ico">⚽</span></h2><div class="teams">'+pub.teams.map((g,k)=>`<div class="team ${(pub.colors||COLORS)[k]||COLORS[k]}" style="animation-delay:${k*0.07}s"><h3 class="${own?'has-tc':''}">${esc(LABELS[k])}${own?`<button class="tcolor" type="button" data-tcolor="${k}" aria-label="שנה צבע">🎨</button>`:''}</h3>${g.map(n=>`<div class="p">${esc(n)}</div>`).join('')}</div>`).join('')+'</div>'+(jersey?`<div class="jersey-note">🎽 גופיות: <b>${esc(jersey)}</b></div>`:'')+'</div>';
  }else{
   const lineup=pub.lineup||[],guests=pub.guests||[];
   /* פריט יכול להיות מחרוזת (תאימות לאחור) או {name,paid} */
@@ -367,7 +382,7 @@ async function doDraw(reshuffle,pw,r){
  const g=await fetch('/api/players',{headers:{'x-app-password':pw},cache:'no-store'});
  if(g.status===401)throw Error('סיסמת הסנכרון שגויה — היכנס לאדמין');if(!g.ok)throw Error('אין חיבור לענן');
  const data=await g.json(),players=Array.isArray(data.players)?data.players:[];
- const t=TeamAlgo.fromRound(players,r,!reshuffle);
+ const t=TeamAlgo.fromRound(players,r,!reshuffle,r.teams);
  if(!t)throw Error('אין מספיק שחקנים בסגל');
  const nameOf=new Map(players.map(p=>[p.id,p.name]));
  const colors=Array.isArray(r.teamColors)&&r.teamColors.length===3?r.teamColors:COLORS;
@@ -392,6 +407,27 @@ $('drawBtn').onclick=async()=>{if(drawBusy||!canDraw())return;
  finally{drawBusy=false;renderDraw()}};
 /* אם האדמין פתוח בלשונית אחרת ושינה משהו — מעדכנים את הכפתור */
 window.addEventListener('storage',renderDraw);
+/* ===== שינוי צבע קבוצה — רק במכשיר המנהל (בלי להזיז שחקנים) ===== */
+const isOwner=()=>localStorage.getItem(LS.flag)==='1'&&!!localStorage.getItem(LS.pw);
+const TC={blue:['כחול','#4389d8'],red:['אדום','#db5460'],yellow:['צהוב','#e3b82b'],orange:['כתום','#e69533'],white:['לבן','#ffffff']};
+let tcTeam=0;
+$('content').addEventListener('click',e=>{const b=e.target.closest('[data-tcolor]');if(!b||!isOwner())return;
+ tcTeam=+b.dataset.tcolor;const cur=((pub&&pub.colors)||COLORS)[tcTeam];
+ $('tcTitle').textContent='צבע ל'+LABELS[tcTeam];
+ $('tcGrid').innerHTML=Object.entries(TC).map(([c,[n,hex]])=>`<div><button type="button" data-pick="${c}" class="${c===cur?'cur':''}" style="background:${hex}" aria-label="${n}"></button><span class="lbl">${n}</span></div>`).join('');
+ $('tcDialog').showModal()});
+$('tcCancel').onclick=()=>$('tcDialog').close();
+$('tcGrid').onclick=async e=>{const b=e.target.closest('[data-pick]');if(!b)return;$('tcDialog').close();
+ const colors=[...(((pub&&pub.colors)||COLORS).slice(0,3))];colors[tcTeam]=b.dataset.pick;
+ const pw=localStorage.getItem(LS.pw);
+ try{const g=await fetch('/api/players',{headers:{'x-app-password':pw},cache:'no-store'});if(!g.ok)throw Error(g.status===401?'סיסמת הסנכרון שגויה — היכנס לאדמין':'אין חיבור לענן');
+  const data=await g.json(),publish={...(data.publish||{}),colors};
+  const p=await fetch('/api/players',{method:'POST',headers:{'content-type':'application/json','x-app-password':pw},body:JSON.stringify({players:data.players||[],publish})});
+  if(!p.ok)throw Error('השמירה נכשלה');
+  /* גם במצב המחזור של האדמין במכשיר הזה — כך הצבע נשמר שם */
+  const r=readLS(LS.round);if(r){r.teamColors=colors;localStorage.setItem(LS.round,JSON.stringify(r))}
+  pub=publish;lastSig='';render();showMsg('הצבע עודכן')
+ }catch(err){showMsg(err.message||'השמירה נכשלה')}};
 /* האלגוריתם נטען רק במכשיר המנהל — אצל אחרים הקובץ לא יורד בכלל */
 if(localStorage.getItem(LS.flag)==='1'&&localStorage.getItem(LS.pw)){const s=document.createElement('script');s.src='algo.js';s.onload=renderDraw;document.head.append(s)}
 poll();renderDraw();setInterval(()=>{poll();renderDraw()},30000);
