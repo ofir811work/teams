@@ -1,5 +1,5 @@
 /* Service Worker — מטמון קליפה (app shell). נתוני הסגל/כוחות תמיד מהרשת. */
-const CACHE = 'koved-shell-v57';
+const CACHE = 'koved-shell-v58';
 const SHELL = ['index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
